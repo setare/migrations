@@ -12,11 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type sourceSQLFiles struct {
-	list []Migration
-	byID map[int64]Migration
-}
-
 var (
 	fileRegex = regexp.MustCompile("^(\\d+)(.*)\\.(undo|do).sql$")
 )
@@ -30,10 +25,7 @@ func NewSourceSQLFromDir(dir string) (Source, error) {
 }
 
 func NewSourceSQLFromFiles(files []string) (Source, error) {
-	source := &sourceSQLFiles{
-		list: make([]Migration, 0, len(files)/2+1),
-		byID: make(map[int64]Migration, len(files)/2+1),
-	}
+	source := NewSource()
 
 	for _, file := range files {
 		fBase := path.Base(file)
@@ -75,53 +67,6 @@ func NewSourceSQLFromFiles(files []string) (Source, error) {
 		}
 	}
 	return source, nil
-}
-
-// ByID will return the Migration reference given the ID.
-func (source *sourceSQLFiles) ByID(id time.Time) (Migration, error) {
-	if migration, ok := source.byID[id.Unix()]; ok {
-		return migration, nil
-	}
-	return nil, WrapMigrationID(ErrMigrationNotFound, id)
-}
-
-// List will returns the list of available migrations.
-//
-// If there is no migrations available, an `ErrNoMigrationsAvailable` should
-// be returned.
-func (source *sourceSQLFiles) List() ([]Migration, error) {
-	return source.list, nil
-}
-
-func (source *sourceSQLFiles) Add(migration Migration) error {
-	for i, m := range source.list {
-		if m.ID() == migration.ID() {
-			return WrapMigration(ErrNonUniqueMigrationID, migration)
-		}
-		if migration.ID().Before(m.ID()) {
-			// Update the migration helpers
-			migration.SetPrevious(m.Previous())
-			if migration.Previous() != nil {
-				migration.Previous().SetNext(migration)
-			}
-			migration.SetNext(m)
-			m.SetPrevious(migration)
-			//
-			source.list = append(source.list[:i], append([]Migration{migration}, source.list[i:]...)...)
-			source.byID[m.ID().Unix()] = m
-			return nil
-		}
-	}
-	if len(source.list) > 0 {
-		migration.SetPrevious(source.list[len(source.list)-1])
-		migration.Previous().SetNext(migration)
-	} else {
-		migration.SetPrevious(nil)
-	}
-	migration.SetNext(nil)
-	source.list = append(source.list, migration)
-	source.byID[migration.ID().Unix()] = migration
-	return nil
 }
 
 type migrationSQL struct {

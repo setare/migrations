@@ -6,7 +6,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/setare/migrations"
-	"github.com/setare/migrations/code"
 	"github.com/setare/migrations/testingutils"
 
 	. "github.com/onsi/ginkgo"
@@ -16,7 +15,7 @@ import (
 var _ = Describe("Planner", func() {
 	It("should plan a from no current to the most recent", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -54,7 +53,7 @@ var _ = Describe("Planner", func() {
 
 	It("should plan a current migration to the most recent", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -92,7 +91,7 @@ var _ = Describe("Planner", func() {
 
 	It("should plan a from the most recent migration to no migration", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -137,7 +136,7 @@ var _ = Describe("Planner", func() {
 
 	It("should plan a current migration to the most recent", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -176,7 +175,7 @@ var _ = Describe("Planner", func() {
 
 	It("should undo all migrations then migrate all over again", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -232,7 +231,7 @@ var _ = Describe("Planner", func() {
 
 	FIt("should migrate all trying to go to the most recent", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -273,7 +272,7 @@ var _ = Describe("Planner", func() {
 
 	It("should do all migrations and then undo all", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))

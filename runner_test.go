@@ -7,7 +7,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/setare/migrations"
-	"github.com/setare/migrations/code"
 	"github.com/setare/migrations/testingutils"
 
 	. "github.com/onsi/ginkgo"
@@ -17,7 +16,7 @@ import (
 var _ = Describe("Runner", func() {
 	It("should execute a plan", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(1, 0))
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 		m3 := testingutils.NewMigration(time.Unix(3, 0))
@@ -43,7 +42,7 @@ var _ = Describe("Runner", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		runner := migrations.NewRunner(source, target)
-		Expect(runner.Execute(nil, plan)).To(Succeed())
+		Expect(runner.Execute(nil, plan, nil)).To(Succeed())
 
 		migrationsDone, err := target.Done()
 		Expect(err).ToNot(HaveOccurred())
@@ -53,7 +52,7 @@ var _ = Describe("Runner", func() {
 
 	It("should fail executing a plan when undoing a undoable migration", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewForwardMigration(time.Unix(1, 0)) // Cannot be undone
 		m2 := testingutils.NewMigration(time.Unix(2, 0))
 
@@ -70,7 +69,7 @@ var _ = Describe("Runner", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		runner := migrations.NewRunner(source, target)
-		err = runner.Execute(nil, plan)
+		_, err = runner.Execute(nil, plan, nil)
 		Expect(err).To(HaveOccurred())
 		Expect(errors.Is(err, migrations.ErrMigrationNotUndoable)).To(BeTrue())
 		vErr := err.(migrations.MigrationError)
