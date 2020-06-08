@@ -3,7 +3,6 @@ package code_test
 import (
 	"time"
 
-	"github.com/setare/migrations/code"
 	"github.com/setare/migrations/testingutils"
 
 	. "github.com/onsi/ginkgo"
@@ -15,7 +14,7 @@ import (
 var _ = Describe("Source", func() {
 	Describe("Code", func() {
 		It("should add a migration on an empty list", func() {
-			s := code.NewSource()
+			s := migrations.NewSource()
 			m := testingutils.NewMigration(time.Unix(0, 0))
 			Expect(s.Add(m)).To(Succeed())
 			l, err := s.List()
@@ -27,7 +26,7 @@ var _ = Describe("Source", func() {
 		})
 
 		It("should sort migrations by ID while adding", func() {
-			s := code.NewSource()
+			s := migrations.NewSource()
 			m0 := testingutils.NewMigration(time.Unix(0, 0))
 			m1 := testingutils.NewMigration(time.Unix(1, 0))
 			m2 := testingutils.NewMigration(time.Unix(2, 0))
@@ -52,7 +51,7 @@ var _ = Describe("Source", func() {
 		})
 
 		It("should fail adding an repeated ID", func() {
-			s := code.NewSource()
+			s := migrations.NewSource()
 			m := testingutils.NewMigration(time.Unix(0, 0))
 			Expect(s.Add(m)).To(Succeed())
 			err := s.Add(m)
@@ -61,7 +60,7 @@ var _ = Describe("Source", func() {
 		})
 
 		It("should list available migrations", func() {
-			s := code.NewSource()
+			s := migrations.NewSource()
 			m0 := testingutils.NewMigration(time.Unix(0, 0))
 			m1 := testingutils.NewMigration(time.Unix(1, 0))
 			m2 := testingutils.NewMigration(time.Unix(2, 0))
@@ -77,7 +76,7 @@ var _ = Describe("Source", func() {
 		})
 
 		It("should get a migration by ID", func() {
-			s := code.NewSource()
+			s := migrations.NewSource()
 			m0 := testingutils.NewMigration(time.Unix(0, 0))
 			m1 := testingutils.NewMigration(time.Unix(1, 0))
 			m2 := testingutils.NewMigration(time.Unix(2, 0))
@@ -92,7 +91,7 @@ var _ = Describe("Source", func() {
 
 		It("should fail getting a migration by ID", func() {
 			// Prepare scenario
-			s := code.NewSource()
+			s := migrations.NewSource()
 			m0 := testingutils.NewMigration(time.Unix(0, 0))
 			m1 := testingutils.NewMigration(time.Unix(1, 0))
 			m2 := testingutils.NewMigration(time.Unix(2, 0))

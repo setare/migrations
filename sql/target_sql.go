@@ -39,7 +39,7 @@ func Table(tableName string) Option {
 	}
 }
 
-// OpotError is an Option that will return the given error when initializing the
+// OptError is an Option that will return the given error when initializing the
 // target. That is really useful for testing.
 func OptError(err error) Option {
 	return func(target *targetSQL) error {

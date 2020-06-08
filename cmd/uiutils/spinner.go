@@ -1,4 +1,4 @@
-package utils
+package uiutils
 
 import (
 	"os"

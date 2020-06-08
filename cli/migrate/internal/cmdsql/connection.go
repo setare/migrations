@@ -2,11 +2,15 @@ package cmdsql
 
 import (
 	dbSQL "database/sql"
+	"errors"
 
+	"github.com/briandowns/spinner"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/ory/viper"
 	"github.com/setare/migrations"
+	"github.com/setare/migrations/cmd/uiutils"
 	migrationsSQL "github.com/setare/migrations/sql"
 )
 
@@ -16,7 +20,7 @@ var (
 
 func Connect(driver, dsn string) error {
 	// Starts the connection
-	db, err := dbSQL.Open(driver, dsn)
+	db, err := dbSQL.Open(driver, ":memory:")
 	if err != nil {
 		return err
 	}
@@ -32,7 +36,20 @@ func Connect(driver, dsn string) error {
 	return nil
 }
 
-func Initialize(dir string) (migrations.Source, migrations.Target, error) {
+func Initialize() (migrations.Source, migrations.Target, error) {
+	dir := viper.GetString("directory")
+
+	if !viper.IsSet("dsn") || viper.Get("dsn") == "" {
+		return nil, nil, errors.New("--dsn or DSN environment variable not defined")
+	}
+
+	err := uiutils.Spin(func(s *spinner.Spinner) error {
+		s.Suffix = "Connecting ..."
+		return Connect(viper.GetString("driver"), viper.GetString("dsn"))
+	})
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Initialize source
 	s, err := migrations.NewSourceSQLFromDir(dir)

@@ -1,4 +1,4 @@
-package cmd
+package create
 
 import (
 	"errors"
@@ -9,33 +9,32 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/ory/viper"
 	"github.com/setare/migrations"
+	"github.com/setare/migrations/cmd"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var createCmd = &cobra.Command{
+var CreateCmd = &cobra.Command{
 	Use: "create <type:sql|source> <description>",
-	Args: func(cmd *cobra.Command, args []string) error {
+	Args: func(cobraCmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("migration description required")
 		}
 		return nil
 	},
 	Short: "Create a migration file",
-	Long:  `This command performs a "rewind" command followed by a "migrate".`,
+	Long:  ``,
 }
 
 func init() {
-	rootCmd.AddCommand(createCmd)
-
 	var (
 		noUndoFlag bool
 	)
 
-	createCmd.Flags().BoolVarP(&noUndoFlag, "no-undo", "n", false, `Do not generate the "undo" step for the migration`)
+	CreateCmd.Flags().BoolVarP(&noUndoFlag, "no-undo", "n", false, `Do not generate the "undo" step for the migration`)
 
-	createCmd.Run = func(cmd *cobra.Command, args []string) {
+	CreateCmd.Run = func(cobraCmd *cobra.Command, args []string) {
 		migrationNamePrefix := fmt.Sprintf("%s_%s", time.Now().UTC().Format(migrations.DefaultMigrationIDFormat), strings.Join(args, "_"))
 
 		dir := viper.GetString("directory")
@@ -49,21 +48,21 @@ func init() {
 			}
 			err = survey.AskOne(prompt, &createFolder)
 			if err != nil {
-				output.Error("unknown error: ", err)
+				cmd.Output.Error("unknown error: ", err)
 				os.Exit(1)
 			}
 			if createFolder {
 				err = os.MkdirAll(dir, os.ModePerm)
 				if err != nil {
-					output.Errorf("could not create directory %s: %s", dir, err)
+					cmd.Output.Errorf("could not create directory %s: %s", dir, err)
 					os.Exit(206)
 				}
 			} else {
-				output.Warn("user cancelled operation")
-				os.Exit(EC_CANCELLED)
+				cmd.Output.Warn("user cancelled operation")
+				os.Exit(cmd.EC_CANCELLED)
 			}
 		} else if err == nil && !migrationsDirStats.IsDir() {
-			output.Errorf("%s is not a directory")
+			cmd.Output.Errorf("%s is not a directory", dir)
 			os.Exit(205)
 		}
 
@@ -72,26 +71,26 @@ func init() {
 
 		fileInfoDo, err := os.Stat(fileNameDo)
 		if !errors.Is(err, os.ErrNotExist) {
-			output.Error("failed checking file: ", err)
+			cmd.Output.Error("failed checking file: ", err)
 			os.Exit(200)
 		} else if err == nil && fileInfoDo.IsDir() {
-			output.Errorf("there is a directory with the same migration name (%s): %s", fileNameDo, err)
+			cmd.Output.Errorf("there is a directory with the same migration name (%s): %s", fileNameDo, err)
 			os.Exit(201)
 		} else if err == nil {
-			output.Errorf("migration file already exists (%s): ", fileNameDo, err)
+			cmd.Output.Errorf("migration file already exists (%s): %s", fileNameDo, err)
 			os.Exit(203)
 		}
 
 		fDo, err := os.Create(fileNameDo)
 		if err != nil {
-			output.Errorf("error creating file: %s", fileNameDo)
+			cmd.Output.Errorf("error creating file: %s", fileNameDo)
 			os.Exit(204)
 		}
 		defer fDo.Close()
 
 		fDo.WriteString("-- SQL here")
 
-		output.Printf("%s created", styleSuccess.Sprint(fileNameDo))
+		cmd.Output.Printf("%s created", cmd.StyleSuccess.Sprint(fileNameDo))
 
 		if noUndoFlag {
 			// Do not generate undo file
@@ -102,25 +101,25 @@ func init() {
 
 		fileInfoUndo, err := os.Stat(fileNameUndo)
 		if !errors.Is(err, os.ErrNotExist) {
-			output.Error("failed checking file: ", err)
+			cmd.Output.Error("failed checking file: ", err)
 			os.Exit(200)
 		} else if err == nil && fileInfoUndo.IsDir() {
-			output.Errorf("there is a directory with the same migration name (%s): %s", fileNameUndo, err)
+			cmd.Output.Errorf("there is a directory with the same migration name (%s): %s", fileNameUndo, err)
 			os.Exit(201)
 		} else if err == nil {
-			output.Errorf("migration file already exists (%s): ", fileNameUndo, err)
+			cmd.Output.Errorf("migration file already exists (%s): %s", fileNameUndo, err)
 			os.Exit(203)
 		}
 
 		fUndo, err := os.Create(fileNameUndo)
 		if err != nil {
-			output.Errorf("error creating file: %s", fileNameUndo)
+			cmd.Output.Errorf("error creating file: %s", fileNameUndo)
 			os.Exit(204)
 		}
 		defer fUndo.Close()
 
 		fUndo.WriteString("-- SQL here")
-		output.Printf("%s created", styleSuccess.Sprint(fileNameUndo))
+		cmd.Output.Printf("%s created", cmd.StyleSuccess.Sprint(fileNameUndo))
 		// }
 	}
 }
