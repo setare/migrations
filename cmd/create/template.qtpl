@@ -1,0 +1,20 @@
+{% func Migration(input *TemplateInput) %}
+package {%s input.Package %}
+
+import (
+	"github.com/setare/migrations"
+	"github.com/setare/migrations/code"
+)
+
+var _ = migrations.DefaultSource.Add(code.MustNew(&code.Migration{
+	Do: func(_ migrations.ExecutionContext) error {
+		panic("not implemented")
+	},
+{% if input.DontUndo %}
+	Undo: func(_ migrations.ExecutionContext) error {
+		panic("not implemented")
+	},
+{% endif -%}
+}))
+
+{% endfunc %}

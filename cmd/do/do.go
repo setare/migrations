@@ -11,8 +11,6 @@ var DoCmd = &cobra.Command{
 	Short: "Steps one migration forward",
 	Long:  `Starting from the current migration, this command will do one.`,
 	Run: func(_ *cobra.Command, args []string) {
-		cmd.PlanAndRun(func() (migrations.Plan, error) {
-			return cmd.Planner.Step(1)
-		})
+		cmd.PlanAndRun(migrations.DoPlanner)
 	},
 }

@@ -19,6 +19,7 @@ require (
 	github.com/sirupsen/logrus v1.2.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.4.0
+	github.com/valyala/quicktemplate v1.5.0
 	go.uber.org/zap v1.10.0
 	gopkg.in/gookit/color.v1 v1.1.6
 )

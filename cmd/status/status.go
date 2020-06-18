@@ -31,7 +31,7 @@ var StatusCmd = &cobra.Command{
 			cmd.Output.MigrationItemList(i, cmd.IconOK(), migration, migration == currentMigration)
 		}
 
-		plan, err := cmd.Planner.Migrate()
+		plan, err := migrations.MigratePlanner(cmd.Source, cmd.Target).Plan()
 		if err != nil {
 			cmd.Output.Error("failed checking pending migrations: ", err)
 			os.Exit(1)

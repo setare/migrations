@@ -33,6 +33,8 @@ func NewSource() Source {
 	}
 }
 
+var DefaultSource = NewSource()
+
 func (source *baseSource) Add(migration Migration) error {
 	for i, m := range source.list {
 		if m.ID() == migration.ID() {

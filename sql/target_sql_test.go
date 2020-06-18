@@ -8,7 +8,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/setare/migrations"
-	"github.com/setare/migrations/code"
 	migrationsSQL "github.com/setare/migrations/sql"
 	"github.com/setare/migrations/testingutils"
 
@@ -179,7 +178,7 @@ var _ = Describe("SQL", func() {
 
 	It("should get the current migration", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(0, 0))
 		m2 := testingutils.NewMigration(time.Unix(1, 0))
 		m3 := testingutils.NewMigration(time.Unix(2, 0))
@@ -218,7 +217,7 @@ var _ = Describe("SQL", func() {
 
 	It("should list of the executed migrations", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(0, 0))
 		m2 := testingutils.NewMigration(time.Unix(1, 0))
 		m3 := testingutils.NewMigration(time.Unix(2, 0))
@@ -247,7 +246,7 @@ var _ = Describe("SQL", func() {
 
 	It("should fail listing a migration that is not in the source", func() {
 		// Prepare scenario
-		source := code.NewSource()
+		source := migrations.NewSource()
 		m1 := testingutils.NewMigration(time.Unix(0, 0))
 		m2 := testingutils.NewMigration(time.Unix(1, 0))
 		m3 := testingutils.NewMigration(time.Unix(2, 0))

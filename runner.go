@@ -27,13 +27,31 @@ type ExecutionStats struct {
 	Errored    []*Action
 }
 
+// Execute performs a plan, running all actions migration by migration.
+//
+// Before running, Execute will check for Undo actions that cannot be performmed into undoable migrations. If that
+// happens, an `ErrMigrationNotUndoable` will be returned and nothing will be executed.
+//
+// For each migration executed, the system will move the cursor to that point. So that, if any error happens during the
+// migration execution (do or undo), the execution will be stopped and the error will be returned. All performed actions
+// WILL NOT be rolled back.
 func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, reporter RunnerReporter) (*ExecutionStats, error) {
 	stats := &ExecutionStats{
 		Successful: make([]*Action, 0, len(plan)),
 	}
+
+	// Check for undoable migrations...
+	for _, action := range plan {
+		if action.Action == ActionTypeUndo && !action.Migration.CanUndo() {
+			return nil, WrapMigration(ErrMigrationNotUndoable, action.Migration)
+		}
+	}
+
 	for _, action := range plan {
 		var err error
-		reporter.BeforeExecute(action.Action, action.Migration)
+		if reporter != nil {
+			reporter.BeforeExecute(action.Action, action.Migration)
+		}
 		switch action.Action {
 		case ActionTypeDo:
 			err = action.Migration.Do(executionContext)
@@ -41,19 +59,20 @@ func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, repo
 				runner.target.Add(action.Migration)
 			}
 		case ActionTypeUndo:
-			if !action.Migration.CanUndo() {
-				err = WrapMigration(ErrMigrationNotUndoable, action.Migration)
-			} else {
-				err = action.Migration.Undo(executionContext)
-				if err == nil {
-					runner.target.Remove(action.Migration)
-				}
+			// Undoable migrations were already checked before.
+			err = action.Migration.Undo(executionContext)
+			if err == nil {
+				runner.target.Remove(action.Migration)
 			}
 		default:
 			err = errors.Wrap(ErrInvalidAction, string(action.Action))
 		}
-		reporter.AfterExecute(action.Action, action.Migration, err)
-		if err != nil {
+		if reporter != nil {
+			reporter.AfterExecute(action.Action, action.Migration, err)
+		}
+		if err == nil {
+			stats.Successful = append(stats.Successful, action)
+		} else {
 			stats.Errored = []*Action{action}
 			return stats, err
 		}

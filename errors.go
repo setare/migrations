@@ -7,12 +7,14 @@ import (
 )
 
 var (
-	ErrNonUniqueMigrationID  = errors.New("migration id is not unique")
-	ErrMigrationNotFound     = errors.New("migration not found")
-	ErrUnkownMigrations      = errors.New("unknown migrations were found")
-	ErrNoCurrentMigration    = errors.New("no current migration")
-	ErrNoMigrationsAvailable = errors.New("no migrations available")
-	ErrMigrationNotUndoable  = errors.New("migration cannot be undone")
+	ErrNonUniqueMigrationID       = errors.New("migration id is not unique")
+	ErrMigrationNotFound          = errors.New("migration not found")
+	ErrUnkownMigrations           = errors.New("unknown migrations were found")
+	ErrNoCurrentMigration         = errors.New("no current migration")
+	ErrCurrentMigrationNotFound   = errors.New("current migration not found in the list")
+	ErrCurrentMigrationMoreRecent = errors.New("current migration is more recent than target migration")
+	ErrNoMigrationsAvailable      = errors.New("no migrations available")
+	ErrMigrationNotUndoable       = errors.New("migration cannot be undone")
 
 	// ErrStepOutOfIndex is returned when a `StepResolver` cannot resolve a
 	// migration due to the resolved index be outside of the migration list.

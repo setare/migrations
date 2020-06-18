@@ -20,7 +20,7 @@ var (
 
 func Connect(driver, dsn string) error {
 	// Starts the connection
-	db, err := dbSQL.Open(driver, ":memory:")
+	db, err := dbSQL.Open(driver, dsn)
 	if err != nil {
 		return err
 	}

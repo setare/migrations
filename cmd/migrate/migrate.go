@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"github.com/setare/migrations"
 	"github.com/setare/migrations/cmd"
 	"github.com/spf13/cobra"
 )
@@ -13,6 +14,6 @@ that are listed after it. The migrations will run in order and if one fail, the
 process will be canceled. After each migration successfully ran, the system will
 save the state.`,
 	Run: func(_ *cobra.Command, args []string) {
-		cmd.PlanAndRun(cmd.Planner.Migrate)
+		cmd.PlanAndRun(migrations.MigratePlanner)
 	},
 }

@@ -1,6 +1,7 @@
 package testingutils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/setare/migrations"
@@ -50,6 +51,10 @@ func NewMigration(id time.Time, err ...error) *DumpMigration {
 
 func (migration *DumpForwardMigration) ID() time.Time {
 	return migration.id
+}
+
+func (migration *DumpForwardMigration) String() string {
+	return fmt.Sprintf("[%s]", migration.id.Format(migrations.DefaultMigrationIDFormat))
 }
 
 func (migration *DumpForwardMigration) Description() string {

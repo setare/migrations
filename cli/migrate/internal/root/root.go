@@ -28,7 +28,11 @@ var rootCmd = &cobra.Command{
 			cmd.Output.Error(err)
 			os.Exit(1)
 		}
-		cmd.Initialize(source, target, cmdsql.NewExecutionContext())
+		err := cmd.Initialize(source, target, cmdsql.NewExecutionContext())
+		if err != nil {
+			cmd.Output.Error(err)
+			os.Exit(2)
+		}
 	},
 }
 
@@ -73,6 +77,7 @@ func initConfig() {
 		cmd.Output.Warn("using config: ", cfgFile)
 		viper.SetConfigFile(viper.GetString("config"))
 	}
+	viper.BindEnv("directory")
 	viper.BindEnv("dsn")
 	viper.BindEnv("driver")
 

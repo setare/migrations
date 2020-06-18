@@ -13,16 +13,22 @@ import (
 var (
 	Target           migrations.Target
 	Source           migrations.Source
-	Planner          *migrations.Planner
+	planner          *migrations.Planner
 	Runner           *migrations.Runner
 	ExecutionContext migrations.ExecutionContext
 )
 
-func Initialize(source migrations.Source, target migrations.Target, executionContext migrations.ExecutionContext) {
-	Planner = migrations.NewPlanner(source, target)
+func Initialize(source migrations.Source, target migrations.Target, executionContext migrations.ExecutionContext) error {
 	Runner = migrations.NewRunner(source, target)
 	Target, Source = target, source
 	ExecutionContext = executionContext
+
+	err := Target.Create()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func initializeFlags(cmd *cobra.Command) {
@@ -31,8 +37,8 @@ func initializeFlags(cmd *cobra.Command) {
 	viper.BindPFlag("plan", cmd.Flags().Lookup("plan"))
 }
 
-func PlanAndRun(action func() (migrations.Plan, error)) {
-	plan, err := action()
+func PlanAndRun(plannerFunc migrations.PlannerFunc) {
+	plan, err := plannerFunc(Source, Target).Plan()
 	if err != nil {
 		log.Error("planning failed: ", err)
 		os.Exit(800)

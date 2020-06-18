@@ -1,6 +1,7 @@
 package code
 
 import (
+	"path"
 	"regexp"
 	"runtime"
 	"strings"
@@ -21,44 +22,38 @@ type migrationFunc func(migrations.ExecutionContext) error
 type codeMigration struct {
 	id          time.Time
 	description string
+	fileName    string
 	do          migrationFunc
 	undo        migrationFunc
 	next        migrations.Migration
 	previous    migrations.Migration
 }
 
-func Migration(opts ...interface{}) migrations.Migration {
-	m, err := NewMigration(opts...)
+type Migration struct {
+	Skip int
+	Do   migrationFunc
+	Undo migrationFunc
+}
+
+var fnameRegex = regexp.MustCompile("^(\\d+)_(.*)\\.go$")
+
+func MustNew(migration *Migration) migrations.Migration {
+	m, err := New(migration)
 	if err != nil {
 		panic(err)
 	}
 	return m
 }
 
-var fnameRegex = regexp.MustCompile("^(\\d+)_(.*)\\.go$")
-
-func NewMigration(opts ...interface{}) (migrations.Migration, error) {
-	skip := 0
-	var (
-		do, undo migrationFunc
-	)
-	for _, o := range opts {
-		switch opt := o.(type) {
-		case int:
-			skip = opt
-		case migrationFunc:
-			if do == nil {
-				do = opt
-			} else if undo == nil {
-				undo = opt
-			}
-		}
-	}
+func New(migration *Migration) (migrations.Migration, error) {
+	skip := 2 + migration.Skip
 
 	_, fileName, _, ok := runtime.Caller(skip)
 	if !ok {
 		return nil, errors.New("error getting file information")
 	}
+
+	fileName = path.Base(fileName)
 
 	matches := fnameRegex.FindStringSubmatch(fileName)
 	if len(matches) == 0 {
@@ -72,15 +67,22 @@ func NewMigration(opts ...interface{}) (migrations.Migration, error) {
 
 	return &codeMigration{
 		id:          migrationID,
+		fileName:    fileName,
 		description: strings.ReplaceAll(matches[2], "_", " "),
-		do:          do,
-		undo:        undo,
+		do:          migration.Do,
+		undo:        migration.Undo,
 	}, nil
 }
 
 // ID identifies the migration. Through the ID, all the sorting is done.
 func (migration *codeMigration) ID() time.Time {
 	return migration.id
+}
+
+// String will return a representation of the migration into a string format
+// for user identification.
+func (migration *codeMigration) String() string {
+	return migration.fileName
 }
 
 // Description is the humanized description for the migration.
@@ -124,5 +126,5 @@ func (migration *codeMigration) CanUndo() bool {
 
 // Undo will undo the migration.
 func (migration *codeMigration) Undo(executionContext migrations.ExecutionContext) error {
-	return migration.do(executionContext)
+	return migration.undo(executionContext)
 }

@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -81,6 +82,15 @@ type migrationSQL struct {
 // ID identifies the migration. Through the ID, all the sorting is done.
 func (migration *migrationSQL) ID() time.Time {
 	return migration.id
+}
+
+// String will return a representation of the migration into a string format
+// for user identification.
+func (migration *migrationSQL) String() string {
+	if migration.CanUndo() {
+		return fmt.Sprintf("[%s,%s]", migration.doFile, migration.undoFile)
+	}
+	return fmt.Sprintf("[%s]", migration.doFile)
 }
 
 // Description is the humanized description for the migration.

@@ -18,6 +18,10 @@ type Migration interface {
 	// ID identifies the migration. Through the ID, all the sorting is done.
 	ID() time.Time
 
+	// String will return a representation of the migration into a string format
+	// for user identification.
+	String() string
+
 	// Description is the humanized description for the migration.
 	Description() string
 
