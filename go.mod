@@ -1,4 +1,4 @@
-module github.com/setare/migrations
+module github.com/jamillosantos/migrations
 
 go 1.14
 
@@ -16,10 +16,7 @@ require (
 	github.com/ory/viper v1.7.5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.4.0
-	github.com/sirupsen/logrus v1.2.0
 	github.com/spf13/cobra v1.0.0
-	github.com/spf13/viper v1.4.0
 	github.com/valyala/quicktemplate v1.5.0
-	go.uber.org/zap v1.10.0
 	gopkg.in/gookit/color.v1 v1.1.6
 )

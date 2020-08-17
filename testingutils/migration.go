@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/setare/migrations"
+	"github.com/jamillosantos/migrations"
 )
 
 type DumpForwardMigration struct {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/setare/migrations"
+	"github.com/jamillosantos/migrations"
 )
 
 var (

@@ -4,9 +4,9 @@ import (
 	"os"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/jamillosantos/migrations"
 	"github.com/ory/viper"
 	"github.com/prometheus/common/log"
-	"github.com/setare/migrations"
 	"github.com/spf13/cobra"
 )
 

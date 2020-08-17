@@ -1,6 +1,6 @@
 package testingutils
 
-import "github.com/setare/migrations"
+import "github.com/jamillosantos/migrations"
 
 type memoryTarget struct {
 	done []migrations.Migration

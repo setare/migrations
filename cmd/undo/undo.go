@@ -1,8 +1,8 @@
 package undo
 
 import (
-	"github.com/setare/migrations"
-	"github.com/setare/migrations/cmd"
+	"github.com/jamillosantos/migrations"
+	"github.com/jamillosantos/migrations/cmd"
 	"github.com/spf13/cobra"
 )
 

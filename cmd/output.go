@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/setare/migrations"
+	"github.com/jamillosantos/migrations"
 	color "gopkg.in/gookit/color.v1"
 )
 

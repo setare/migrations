@@ -7,9 +7,9 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/setare/migrations"
-	migrationsSQL "github.com/setare/migrations/sql"
-	"github.com/setare/migrations/testingutils"
+	"github.com/jamillosantos/migrations"
+	migrationsSQL "github.com/jamillosantos/migrations/sql"
+	"github.com/jamillosantos/migrations/testingutils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

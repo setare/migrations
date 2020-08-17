@@ -3,12 +3,12 @@ package code_test
 import (
 	"time"
 
-	"github.com/setare/migrations/testingutils"
+	"github.com/jamillosantos/migrations/testingutils"
 
+	"github.com/jamillosantos/migrations"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	"github.com/setare/migrations"
 )
 
 var _ = Describe("Source", func() {

@@ -28,8 +28,8 @@ package `)
 	qw422016.N().S(`
 
 import (
-	"github.com/setare/migrations"
-	"github.com/setare/migrations/code"
+	"github.com/jamillosantos/migrations"
+	"github.com/jamillosantos/migrations/code"
 )
 
 var _ = migrations.DefaultSource.Add(code.MustNew(&code.Migration{

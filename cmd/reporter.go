@@ -1,6 +1,6 @@
 package cmd
 
-import "github.com/setare/migrations"
+import "github.com/jamillosantos/migrations"
 
 func reportPlan(plan migrations.Plan) {
 	if len(plan) == 0 {

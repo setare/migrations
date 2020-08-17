@@ -6,8 +6,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/setare/migrations"
-	"github.com/setare/migrations/testingutils"
+	"github.com/jamillosantos/migrations"
+	"github.com/jamillosantos/migrations/testingutils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

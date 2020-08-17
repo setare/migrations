@@ -6,12 +6,12 @@ import (
 
 	"github.com/briandowns/spinner"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jamillosantos/migrations"
+	"github.com/jamillosantos/migrations/cmd/uiutils"
+	migrationsSQL "github.com/jamillosantos/migrations/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/ory/viper"
-	"github.com/setare/migrations"
-	"github.com/setare/migrations/cmd/uiutils"
-	migrationsSQL "github.com/setare/migrations/sql"
 )
 
 var (
