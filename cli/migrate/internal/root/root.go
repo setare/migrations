@@ -28,7 +28,7 @@ var rootCmd = &cobra.Command{
 			cmd.Output.Error(err)
 			os.Exit(1)
 		}
-		err := cmd.Initialize(source, target, cmdsql.NewExecutionContext())
+		err = cmd.Initialize(source, target, cmdsql.NewExecutionContext())
 		if err != nil {
 			cmd.Output.Error(err)
 			os.Exit(2)
