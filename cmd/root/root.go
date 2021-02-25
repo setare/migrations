@@ -58,7 +58,9 @@ func initConfig() {
 	viper.BindEnv("driver")
 
 	if err := viper.ReadInConfig(); err != nil {
-		cmd.Output.Errorf("failed loading %s:", viper.ConfigFileUsed())
-		os.Exit(999)
+		if viper.GetString("dsn") == "" && viper.GetString("driver") == "" {
+			cmd.Output.Errorf("failed loading %s:", viper.ConfigFileUsed())
+			os.Exit(999)
+		}
 	}
 }
