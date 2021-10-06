@@ -1,13 +1,13 @@
 package code
 
 import (
+	"errors"
+	"fmt"
 	"path"
 	"regexp"
 	"runtime"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/jamillosantos/migrations"
 )
@@ -17,7 +17,7 @@ var (
 	ErrInvalidMigrationID = errors.New("invalid migration ID")
 )
 
-type migrationFunc func(migrations.ExecutionContext) error
+type migrationFunc func() error
 
 type codeMigration struct {
 	id          time.Time
@@ -29,7 +29,8 @@ type codeMigration struct {
 	previous    migrations.Migration
 }
 
-type Migration struct {
+type MigrationOpts struct {
+	// Skip defines how many lines will be skipped if the initialization this MigrationOpts struct fails.
 	Skip int
 	Do   migrationFunc
 	Undo migrationFunc
@@ -37,7 +38,7 @@ type Migration struct {
 
 var fnameRegex = regexp.MustCompile("^(\\d+)_(.*)\\.go$")
 
-func MustNew(migration *Migration) migrations.Migration {
+func MustNew(migration *MigrationOpts) migrations.Migration {
 	m, err := New(migration)
 	if err != nil {
 		panic(err)
@@ -45,7 +46,7 @@ func MustNew(migration *Migration) migrations.Migration {
 	return m
 }
 
-func New(migration *Migration) (migrations.Migration, error) {
+func New(migration *MigrationOpts) (migrations.Migration, error) {
 	skip := 2 + migration.Skip
 
 	_, fileName, _, ok := runtime.Caller(skip)
@@ -57,12 +58,12 @@ func New(migration *Migration) (migrations.Migration, error) {
 
 	matches := fnameRegex.FindStringSubmatch(fileName)
 	if len(matches) == 0 {
-		return nil, errors.Wrap(ErrInvalidFilename, fileName)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidFilename, fileName)
 	}
 
 	migrationID, err := time.Parse(migrations.DefaultMigrationIDFormat, matches[1])
 	if err != nil {
-		return nil, errors.Wrap(ErrInvalidMigrationID, matches[1])
+		return nil, fmt.Errorf("%w: %s", ErrInvalidMigrationID, matches[1])
 	}
 
 	return &codeMigration{
@@ -115,8 +116,8 @@ func (migration *codeMigration) SetPrevious(value migrations.Migration) migratio
 }
 
 // Do will execute the migration.
-func (migration *codeMigration) Do(executionContext migrations.ExecutionContext) error {
-	return migration.do(executionContext)
+func (migration *codeMigration) Do() error {
+	return migration.do()
 }
 
 // CanUndo is a flag that mark this flag as undoable.
@@ -125,6 +126,6 @@ func (migration *codeMigration) CanUndo() bool {
 }
 
 // Undo will undo the migration.
-func (migration *codeMigration) Undo(executionContext migrations.ExecutionContext) error {
-	return migration.undo(executionContext)
+func (migration *codeMigration) Undo() error {
+	return migration.undo()
 }

@@ -1,270 +1,341 @@
-package sql_test
+//go:generate go run github.com/golang/mock/mockgen -package sql -destination migration_mock_test.go github.com/jamillosantos/migrations Source,Migration
+
+package sql
 
 import (
 	"database/sql"
 	"errors"
-	"time"
+	"fmt"
+	"testing"
 
+	"github.com/golang/mock/gomock"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/jamillosantos/migrations"
-	migrationsSQL "github.com/jamillosantos/migrations/sql"
-	"github.com/jamillosantos/migrations/testingutils"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("SQL", func() {
-	var db *sql.DB
+const (
+	sqlListTables = "SELECT name FROM sqlite_master"
+)
 
-	BeforeEach(func() {
-		var err error
-		db, err = sql.Open("sqlite3", ":memory:")
-		Expect(err).ToNot(HaveOccurred())
+func newMockMigration(ctrl *gomock.Controller, id string) *MockMigration {
+	m := NewMockMigration(ctrl)
+	m.EXPECT().ID().Return(id).AnyTimes()
+	m.EXPECT().String().Return(fmt.Sprintf("migration %s", id)).AnyTimes()
+	return m
+}
+
+func createDB(t *testing.T) *sql.DB {
+	t.Helper()
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+	return db
+}
+
+func TestNewTarget(t *testing.T) {
+	t.Run("should create the target", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
+
+		source := NewMockSource(ctrl)
+		target, err := NewTarget(source, db)
+		assert.NoError(t, err)
+
+		assert.Equal(t, db, target.db)
+		assert.Equal(t, source, target.source)
 	})
 
-	AfterEach(func() {
-		Expect(db.Close()).To(Succeed())
-	})
+	t.Run("should fail when a option fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
 
-	It("should create the migrations table", func() {
+		wantErr := errors.New("random error")
+
+		source := NewMockSource(ctrl)
+		_, err := NewTarget(source, db, func(target *Target) error {
+			return wantErr
+		})
+		assert.ErrorIs(t, err, wantErr)
+	})
+}
+
+func Test_targetSQL_Create(t *testing.T) {
+	t.Run("should create the _migrations table", func(t *testing.T) {
+		db := createDB(t)
+
 		// Prepares scenario
-		target, err := migrationsSQL.NewTarget(nil, db)
-		Expect(err).ToNot(HaveOccurred())
+		target, err := NewTarget(nil, db)
+		assert.NoError(t, err)
 
 		// Creates table
-		Expect(target.Create()).To(Succeed())
+		require.NoError(t, target.Create())
 
 		// Checks if the table exists
 		var tableName string
-		Expect(db.QueryRow("SELECT name FROM sqlite_master;").Scan(&tableName)).To(Succeed())
-		Expect(tableName).To(Equal("_migrations"))
+		assert.NoError(t, db.QueryRow(sqlListTables).Scan(&tableName))
+		assert.Equal(t, tableName, "_migrations")
 	})
 
-	It("should create the migrations table customizing the table name", func() {
+	t.Run("should create the _migrations table", func(t *testing.T) {
+		db := createDB(t)
+
 		// Prepares scenario
-		target, err := migrationsSQL.NewTarget(nil, db, migrationsSQL.Table("new_migration_table"))
-		Expect(err).ToNot(HaveOccurred())
+		wantTableName := "new_migration_table"
+		target, err := NewTarget(nil, db, Table(wantTableName))
+		assert.NoError(t, err)
 
 		// Creates table
-		Expect(target.Create()).To(Succeed())
+		require.NoError(t, target.Create())
 
 		// Checks if the table exists
 		var tableName string
-		Expect(db.QueryRow("SELECT name FROM sqlite_master;").Scan(&tableName)).To(Succeed())
-		Expect(tableName).To(Equal("new_migration_table"))
+		assert.NoError(t, db.QueryRow(sqlListTables).Scan(&tableName))
+		assert.Equal(t, tableName, wantTableName)
 	})
+}
 
-	It("should receive the error from an option", func() {
-		// Prepares scenario
-		errOpt := errors.New("error from option")
-		target, err := migrationsSQL.NewTarget(nil, db, migrationsSQL.OptError(errOpt))
-		Expect(err).To(HaveOccurred())
-		Expect(target).To(BeNil())
-		Expect(err).To(Equal(errOpt))
-	})
+func Test_targetSQL_Destroy(t *testing.T) {
+	db := createDB(t)
 
-	It("should destroy the migrations table", func() {
-		// Prepares scenario
-		target, err := migrationsSQL.NewTarget(nil, db)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(target.Create()).To(Succeed())
+	// Prepares scenario
+	target, err := NewTarget(nil, db)
+	require.NoError(t, err)
+	err = target.Create()
+	require.NoError(t, err)
 
-		// Destroys table
-		Expect(target.Destroy()).To(Succeed())
+	// Destroys table
+	err = target.Destroy()
+	require.NoError(t, err)
 
-		// Checks if the table exists.
-		var tableName string
-		err = db.QueryRow("SELECT name FROM sqlite_master;").Scan(&tableName)
-		Expect(err).To(HaveOccurred())
-		Expect(err).To(Equal(sql.ErrNoRows))
-	})
+	// Checks if the table exists.
+	var tableName string
+	err = db.QueryRow(sqlListTables).Scan(&tableName)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+}
 
-	It("should destroy the migrations table with a customized name", func() {
-		// Prepares scenario
-		target, err := migrationsSQL.NewTarget(nil, db, migrationsSQL.Table("new_migration_table"))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(target.Create()).To(Succeed())
+func Test_targetSQL_Add(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	db := createDB(t)
 
-		// Destroys table
-		Expect(target.Destroy()).To(Succeed())
+	// Prepares scenarios
+	target, err := NewTarget(nil, db)
+	require.NoError(t, err)
+	require.NoError(t, target.Create())
 
-		// Checks if the table exists.
-		var tableName string
-		err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table';").Scan(&tableName)
-		Expect(err).To(HaveOccurred())
-		Expect(err).To(Equal(sql.ErrNoRows))
-	})
+	// Creates and adds migrations
+	m1 := newMockMigration(ctrl, "1")
+	m2 := newMockMigration(ctrl, "2")
+	m3 := newMockMigration(ctrl, "3")
 
-	It("should add migrations as executed", func() {
-		// Prepares scenarios
-		target, err := migrationsSQL.NewTarget(nil, db)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(target.Create()).To(Succeed())
+	assert.NoError(t, target.Add(m3))
+	assert.NoError(t, target.Add(m1))
+	assert.NoError(t, target.Add(m2))
 
-		// Creates and adds migrations
-		m1 := testingutils.NewMigration(time.Unix(0, 0))
-		m2 := testingutils.NewMigration(time.Unix(1, 0))
-		m3 := testingutils.NewMigration(time.Unix(2, 0))
+	// Check the database for the tables
+	rs, err := db.Query("SELECT id FROM _migrations ORDER BY id;")
+	require.NoError(t, err)
+	defer func() {
+		_ = rs.Close()
+	}()
 
-		Expect(target.Add(m3)).To(Succeed())
-		Expect(target.Add(m1)).To(Succeed())
-		Expect(target.Add(m2)).To(Succeed())
+	var id string
 
-		// Check the database for the tables
-		rs, err := db.Query("SELECT id FROM _migrations ORDER BY id;")
-		Expect(err).ToNot(HaveOccurred())
-		defer rs.Close()
+	// finds m1
+	assert.True(t, rs.Next())
+	assert.NoError(t, rs.Scan(&id))
+	assert.Equal(t, m1.ID(), id)
 
-		var id int64
+	// finds m2
+	assert.True(t, rs.Next())
+	assert.NoError(t, rs.Scan(&id))
+	assert.Equal(t, m2.ID(), id)
 
-		// finds m1
-		Expect(rs.Next()).To(BeTrue())
-		Expect(rs.Scan(&id)).To(Succeed())
-		Expect(id).To(Equal(m1.ID().Unix()))
+	// finds m3
+	assert.True(t, rs.Next())
+	assert.NoError(t, rs.Scan(&id))
+	assert.Equal(t, m3.ID(), id)
 
-		// finds m2
-		Expect(rs.Next()).To(BeTrue())
-		Expect(rs.Scan(&id)).To(Succeed())
-		Expect(id).To(Equal(m2.ID().Unix()))
+	// EOF
+	assert.False(t, rs.Next())
+}
 
-		// finds m3
-		Expect(rs.Next()).To(BeTrue())
-		Expect(rs.Scan(&id)).To(Succeed())
-		Expect(id).To(Equal(m3.ID().Unix()))
+func Test_targetSQL_Remove(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	db := createDB(t)
 
-		// EOF
-		Expect(rs.Next()).To(BeFalse())
-	})
+	// Prepare scenario
+	m1 := newMockMigration(ctrl, "1")
+	m2 := newMockMigration(ctrl, "2")
+	m3 := newMockMigration(ctrl, "3")
 
-	It("should remove migrations", func() {
+	target, err := NewTarget(nil, db)
+	require.NoError(t, err)
+
+	assert.NoError(t, target.Create())
+	assert.NoError(t, target.Add(m3))
+	assert.NoError(t, target.Add(m1))
+	assert.NoError(t, target.Add(m2))
+
+	// Removes the migration m3
+	assert.NoError(t, target.Remove(m3))
+
+	// Check the database for the tables
+	rs, err := db.Query("SELECT id FROM _migrations ORDER BY id;")
+	assert.NoError(t, err)
+	defer func() {
+		_ = rs.Close()
+	}()
+
+	var gotID string
+
+	// Find m1
+	assert.True(t, rs.Next())
+	assert.NoError(t, rs.Scan(&gotID))
+	assert.Equal(t, m1.ID(), gotID)
+
+	// Find m2
+	assert.True(t, rs.Next())
+	assert.NoError(t, rs.Scan(&gotID))
+	assert.Equal(t, m2.ID(), gotID)
+
+	// EOF
+	assert.False(t, rs.Next())
+}
+
+func Test_targetSQL_Current(t *testing.T) {
+	t.Run("should return the most recent migration", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
+
 		// Prepare scenario
-		m1 := testingutils.NewMigration(time.Unix(0, 0))
-		m2 := testingutils.NewMigration(time.Unix(1, 0))
-		m3 := testingutils.NewMigration(time.Unix(2, 0))
+		source := NewMockSource(ctrl)
 
-		target, err := migrationsSQL.NewTarget(nil, db)
-		Expect(err).ToNot(HaveOccurred())
+		m1 := newMockMigration(ctrl, "0")
+		m2 := newMockMigration(ctrl, "2")
 
-		Expect(target.Create()).To(Succeed())
-		Expect(target.Add(m3)).To(Succeed())
-		Expect(target.Add(m1)).To(Succeed())
-		Expect(target.Add(m2)).To(Succeed())
+		source.EXPECT().ByID(m1.ID()).Return(m1, nil).AnyTimes()
+		source.EXPECT().ByID(m2.ID()).Return(m2, nil).AnyTimes()
 
-		// Removes the migration m3
-		Expect(target.Remove(m3)).To(Succeed())
+		target, err := NewTarget(source, db)
+		assert.NoError(t, err)
 
-		// Check the database for the tables
-		rs, err := db.Query("SELECT id FROM _migrations ORDER BY id;")
-		Expect(err).ToNot(HaveOccurred())
-		defer rs.Close()
-
-		var id int64
-
-		// Find m1
-		Expect(rs.Next()).To(BeTrue())
-		Expect(rs.Scan(&id)).To(Succeed())
-		Expect(id).To(Equal(m1.ID().Unix()))
-
-		// Find m2
-		Expect(rs.Next()).To(BeTrue())
-		Expect(rs.Scan(&id)).To(Succeed())
-		Expect(id).To(Equal(m2.ID().Unix()))
-
-		// EOF
-		Expect(rs.Next()).To(BeFalse())
-	})
-
-	It("should get the current migration", func() {
-		// Prepare scenario
-		source := migrations.NewSource()
-		m1 := testingutils.NewMigration(time.Unix(0, 0))
-		m2 := testingutils.NewMigration(time.Unix(1, 0))
-		m3 := testingutils.NewMigration(time.Unix(2, 0))
-
-		Expect(source.Add(m1)).To(Succeed())
-		Expect(source.Add(m2)).To(Succeed())
-		Expect(source.Add(m3)).To(Succeed())
-
-		target, err := migrationsSQL.NewTarget(source, db)
-		Expect(err).ToNot(HaveOccurred())
-
-		Expect(target.Create()).To(Succeed())
-		Expect(target.Add(m1)).To(Succeed())
+		assert.NoError(t, target.Create())
+		assert.NoError(t, target.Add(m1))
+		assert.NoError(t, target.Add(m2))
 
 		// Get the current migration
 		currentMigration, err := target.Current()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(currentMigration).To(Equal(m1))
-
-		// Update the current migration
-		Expect(target.Add(m3)).To(Succeed())
-
-		// Get the current migration²
-		currentMigration, err = target.Current()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(currentMigration).To(Equal(m3))
-
-		// Add a migration that will not change the current migration
-		Expect(target.Add(m2)).To(Succeed())
-
-		// Get the current migration³
-		currentMigration, err = target.Current()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(currentMigration).To(Equal(m3))
+		assert.NoError(t, err)
+		assert.Equal(t, m2, currentMigration)
 	})
 
-	It("should list of the executed migrations", func() {
+	t.Run("should fail when there is no migration applied", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
+
 		// Prepare scenario
-		source := migrations.NewSource()
-		m1 := testingutils.NewMigration(time.Unix(0, 0))
-		m2 := testingutils.NewMigration(time.Unix(1, 0))
-		m3 := testingutils.NewMigration(time.Unix(2, 0))
+		source := NewMockSource(ctrl)
 
-		Expect(source.Add(m1)).To(Succeed())
-		Expect(source.Add(m2)).To(Succeed())
-		Expect(source.Add(m3)).To(Succeed())
+		target, err := NewTarget(source, db)
+		assert.NoError(t, err)
 
-		target, err := migrationsSQL.NewTarget(source, db)
-		Expect(err).ToNot(HaveOccurred())
+		assert.NoError(t, target.Create())
 
-		Expect(target.Create()).To(Succeed())
-		Expect(target.Add(m1)).To(Succeed())
-		Expect(target.Add(m2)).To(Succeed())
-		Expect(target.Add(m3)).To(Succeed())
+		// Get the current migration
+		_, err = target.Current()
+		assert.ErrorIs(t, err, migrations.ErrNoCurrentMigration)
+	})
+
+	t.Run("should fail when Done fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
+
+		// Prepare scenario
+		source := NewMockSource(ctrl)
+
+		m1 := newMockMigration(ctrl, "1")
+		wantErr := errors.New("random error")
+
+		source.EXPECT().ByID(gomock.Any()).Return(nil, wantErr)
+
+		target, err := NewTarget(source, db)
+		assert.NoError(t, err)
+
+		assert.NoError(t, target.Create())
+		assert.NoError(t, target.Add(m1))
+
+		// Get the current migration
+		_, err = target.Current()
+		assert.ErrorIs(t, err, wantErr)
+	})
+}
+
+func Test_targetSQL_Done(t *testing.T) {
+	t.Run("should list of the executed migrations", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
+
+		// Prepare scenario
+		source := NewMockSource(ctrl)
+
+		m1 := newMockMigration(ctrl, "1")
+		m2 := newMockMigration(ctrl, "2")
+		m3 := newMockMigration(ctrl, "3")
+
+		source.EXPECT().ByID(m1.ID()).Return(m1, nil)
+		source.EXPECT().ByID(m2.ID()).Return(m2, nil)
+		source.EXPECT().ByID(m3.ID()).Return(m3, nil)
+
+		target, err := NewTarget(source, db)
+		assert.NoError(t, err)
+
+		assert.NoError(t, target.Create())
+		assert.NoError(t, target.Add(m1))
+		assert.NoError(t, target.Add(m2))
+		assert.NoError(t, target.Add(m3))
 
 		// List executed migrations
 		list, err := target.Done()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(list).To(HaveLen(3))
+		assert.NoError(t, err)
+		require.Len(t, list, 3)
 
-		Expect(list[0]).To(Equal(m1))
-		Expect(list[1]).To(Equal(m2))
-		Expect(list[2]).To(Equal(m3))
+		assert.Equal(t, m1, list[0])
+		assert.Equal(t, m2, list[1])
+		assert.Equal(t, m3, list[2])
 	})
 
-	It("should fail listing a migration that is not in the source", func() {
+	t.Run("should fail listing a migration that is not in the source", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		db := createDB(t)
+
 		// Prepare scenario
-		source := migrations.NewSource()
-		m1 := testingutils.NewMigration(time.Unix(0, 0))
-		m2 := testingutils.NewMigration(time.Unix(1, 0))
-		m3 := testingutils.NewMigration(time.Unix(2, 0))
+		source := NewMockSource(ctrl)
 
-		Expect(source.Add(m1)).To(Succeed())
-		Expect(source.Add(m3)).To(Succeed())
+		m1 := newMockMigration(ctrl, "1")
+		m2 := newMockMigration(ctrl, "2")
+		m3 := newMockMigration(ctrl, "3")
 
-		target, err := migrationsSQL.NewTarget(source, db)
-		Expect(err).ToNot(HaveOccurred())
+		source.EXPECT().ByID(m1.ID()).Return(m1, nil)
+		source.EXPECT().ByID(m2.ID()).Return(nil, migrations.ErrMigrationNotFound)
+		// source.EXPECT().ByID(m3.ID()).Return(m3, nil)
 
-		Expect(target.Create()).To(Succeed())
-		Expect(target.Add(m1)).To(Succeed())
-		Expect(target.Add(m2)).To(Succeed())
-		Expect(target.Add(m3)).To(Succeed())
+		target, err := NewTarget(source, db)
+		assert.NoError(t, err)
+
+		assert.NoError(t, target.Create())
+		assert.NoError(t, target.Add(m1))
+		assert.NoError(t, target.Add(m2))
+		assert.NoError(t, target.Add(m3))
 
 		// List executed migrations
 		_, err = target.Done()
-		Expect(err).To(HaveOccurred())
-		Expect(errors.Is(err, migrations.ErrMigrationNotFound)).To(BeTrue())
+		assert.ErrorIs(t, err, migrations.ErrMigrationNotFound)
 	})
-})
+}

@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/jamillosantos/migrations"
 	color "gopkg.in/gookit/color.v1"
+
+	"github.com/jamillosantos/migrations"
 )
 
 var (
@@ -54,7 +55,7 @@ func (p *Printer) H1f(format string, args ...interface{}) {
 }
 
 func (p *Printer) Smigration(migration migrations.Migration) string {
-	return fmt.Sprintf("%s %s", StyleMigrationID.Sprint(migration.ID().Format(migrations.DefaultMigrationIDFormat)), StyleMigrationTitle.Sprint(migration.Description()))
+	return fmt.Sprintf("%s %s", StyleMigrationID.Sprint(migration.ID()), StyleMigrationTitle.Sprint(migration.Description()))
 }
 
 func (p *Printer) Saction(actionType migrations.ActionType) string {

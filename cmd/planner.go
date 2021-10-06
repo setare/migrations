@@ -15,13 +15,11 @@ var (
 	Source           migrations.Source
 	planner          *migrations.Planner
 	Runner           *migrations.Runner
-	ExecutionContext migrations.ExecutionContext
 )
 
-func Initialize(source migrations.Source, target migrations.Target, executionContext migrations.ExecutionContext) error {
+func Initialize(source migrations.Source, target migrations.Target) error {
 	Runner = migrations.NewRunner(source, target)
 	Target, Source = target, source
-	ExecutionContext = executionContext
 
 	err := Target.Create()
 	if err != nil {

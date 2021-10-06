@@ -3,22 +3,20 @@ package sql
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/jamillosantos/migrations"
 )
 
-type targetSQL struct {
+type Target struct {
 	source    migrations.Source
 	db        *sql.DB
 	tableName string
 }
 
-// Option
-type Option func(target *targetSQL) error
+type Option func(target *Target) error
 
-func NewTarget(source migrations.Source, db *sql.DB, options ...Option) (migrations.Target, error) {
-	target := &targetSQL{
+func NewTarget(source migrations.Source, db *sql.DB, options ...Option) (*Target, error) {
+	target := &Target{
 		source,
 		db,
 		"_migrations",
@@ -33,31 +31,23 @@ func NewTarget(source migrations.Source, db *sql.DB, options ...Option) (migrati
 }
 
 func Table(tableName string) Option {
-	return func(target *targetSQL) error {
+	return func(target *Target) error {
 		target.tableName = tableName
 		return nil
 	}
 }
 
-// OptError is an Option that will return the given error when initializing the
-// target. That is really useful for testing.
-func OptError(err error) Option {
-	return func(target *targetSQL) error {
-		return err
-	}
-}
-
-func (target *targetSQL) Create() error {
+func (target *Target) Create() error {
 	_, err := target.db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY)", target.tableName))
 	return err
 }
 
-func (target *targetSQL) Destroy() error {
+func (target *Target) Destroy() error {
 	_, err := target.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", target.tableName))
 	return err
 }
 
-func (target *targetSQL) Current() (migrations.Migration, error) {
+func (target *Target) Current() (migrations.Migration, error) {
 	list, err := target.Done()
 	if err != nil {
 		return nil, err
@@ -68,20 +58,20 @@ func (target *targetSQL) Current() (migrations.Migration, error) {
 	return list[len(list)-1], nil
 }
 
-func (target *targetSQL) Done() ([]migrations.Migration, error) {
+func (target *Target) Done() ([]migrations.Migration, error) {
 	rs, err := target.db.Query(fmt.Sprintf("SELECT id FROM %s ORDER BY id ASC", target.tableName))
 	if err != nil {
 		return nil, err
 	}
 	defer rs.Close()
-	var id int64
+	var id string
 	result := make([]migrations.Migration, 0)
 	for rs.Next() {
 		err := rs.Scan(&id)
 		if err != nil {
 			return nil, err
 		}
-		idDt := time.Unix(id, 0)
+		idDt := id
 		migration, err := target.source.ByID(idDt)
 		if err != nil {
 			return nil, err
@@ -91,12 +81,12 @@ func (target *targetSQL) Done() ([]migrations.Migration, error) {
 	return result, nil
 }
 
-func (target *targetSQL) Add(migration migrations.Migration) error {
-	_, err := target.db.Exec(fmt.Sprintf("INSERT INTO %s (id) VALUES (%d)", target.tableName, migration.ID().Unix()))
+func (target *Target) Add(migration migrations.Migration) error {
+	_, err := target.db.Exec(fmt.Sprintf("INSERT INTO %s (id) VALUES (?)", target.tableName), migration.ID())
 	return err
 }
 
-func (target *targetSQL) Remove(migration migrations.Migration) error {
-	_, err := target.db.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = %d", target.tableName, migration.ID().UTC().Unix()))
+func (target *Target) Remove(migration migrations.Migration) error {
+	_, err := target.db.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", target.tableName), migration.ID())
 	return err
 }

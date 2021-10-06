@@ -1,6 +1,9 @@
 package migrations
 
-import "github.com/pkg/errors"
+import (
+	"context"
+	"fmt"
+)
 
 // Runner will receive the `Plan` from the `Planner` and execute it.
 type Runner struct {
@@ -35,7 +38,7 @@ type ExecutionStats struct {
 // For each migration executed, the system will move the cursor to that point. So that, if any error happens during the
 // migration execution (do or undo), the execution will be stopped and the error will be returned. All performed actions
 // WILL NOT be rolled back.
-func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, reporter RunnerReporter) (*ExecutionStats, error) {
+func (runner *Runner) Execute(ctx context.Context, plan Plan, reporter RunnerReporter) (*ExecutionStats, error) {
 	stats := &ExecutionStats{
 		Successful: make([]*Action, 0, len(plan)),
 	}
@@ -43,7 +46,7 @@ func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, repo
 	// Check for undoable migrations...
 	for _, action := range plan {
 		if action.Action == ActionTypeUndo && !action.Migration.CanUndo() {
-			return nil, WrapMigration(ErrMigrationNotUndoable, action.Migration)
+			return stats, WrapMigration(ErrMigrationNotUndoable, action.Migration)
 		}
 	}
 
@@ -54,18 +57,18 @@ func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, repo
 		}
 		switch action.Action {
 		case ActionTypeDo:
-			err = action.Migration.Do(executionContext)
+			err = action.Migration.Do(ctx)
 			if err == nil {
-				runner.target.Add(action.Migration)
+				err = runner.target.Add(action.Migration)
 			}
 		case ActionTypeUndo:
 			// Undoable migrations were already checked before.
-			err = action.Migration.Undo(executionContext)
+			err = action.Migration.Undo(ctx)
 			if err == nil {
-				runner.target.Remove(action.Migration)
+				err = runner.target.Remove(action.Migration)
 			}
 		default:
-			err = errors.Wrap(ErrInvalidAction, string(action.Action))
+			err = fmt.Errorf("%w: %s", ErrInvalidAction, string(action.Action))
 		}
 		if reporter != nil {
 			reporter.AfterExecute(action.Action, action.Migration, err)

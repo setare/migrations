@@ -1,14 +1,3 @@
-package migrations_test
+//go:generate go run github.com/golang/mock/mockgen -package migrations -destination migration_mock_test.go github.com/jamillosantos/migrations Source,Target,Migration,RunnerReporter
 
-import (
-	"testing"
-
-	"github.com/novln/macchiato"
-	"github.com/onsi/ginkgo"
-	"github.com/onsi/gomega"
-)
-
-func TestMigrations(t *testing.T) {
-	gomega.RegisterFailHandler(ginkgo.Fail)
-	macchiato.RunSpecs(t, "migrations Test Suite")
-}
+package migrations

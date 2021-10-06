@@ -6,12 +6,13 @@ import (
 
 	"github.com/briandowns/spinner"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jamillosantos/migrations"
-	"github.com/jamillosantos/migrations/cmd/uiutils"
-	migrationsSQL "github.com/jamillosantos/migrations/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/ory/viper"
+
+	"github.com/jamillosantos/migrations"
+	"github.com/jamillosantos/migrations/cmd/uiutils"
+	migrationsSQL "github.com/jamillosantos/migrations/sql"
 )
 
 var (
@@ -52,7 +53,7 @@ func Initialize() (migrations.Source, migrations.Target, error) {
 	}
 
 	// Initialize source
-	s, err := migrations.NewSourceSQLFromDir(dir)
+	s, err := migrationsSQL.NewSourceSQLFromDir(dir)
 	if err != nil {
 		return nil, nil, err
 	}
