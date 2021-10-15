@@ -44,7 +44,7 @@ var (
 // MigrationCodeError wraps an error with a migration ID.
 type MigrationIDError interface {
 	error
-	MigrationID() time.Time
+	MigrationID() string
 	Unwrap() error
 }
 
@@ -63,7 +63,7 @@ type MigrationsError interface {
 
 type migrationIDError struct {
 	error
-	migrationID time.Time
+	migrationID string
 }
 
 type migrationError struct {
@@ -77,7 +77,7 @@ type migrationsError struct {
 }
 
 // WrapMigrationID creates a `MigrationCodeError` based on an existing error.
-func WrapMigrationID(err error, migrationID time.Time) MigrationIDError {
+func WrapMigrationID(err error, migrationID string) MigrationIDError {
 	return &migrationIDError{
 		err,
 		migrationID,
@@ -99,7 +99,7 @@ func WrapMigrations(err error, migrations ...Migration) MigrationsError {
 	}
 }
 
-func (err *migrationIDError) MigrationID() time.Time {
+func (err *migrationIDError) MigrationID() string {
 	return err.migrationID
 }
 
@@ -108,7 +108,7 @@ func (err *migrationIDError) Unwrap() error {
 }
 
 func (err *migrationIDError) Error() string {
-	return "migration " + err.migrationID.Format(DefaultMigrationIDFormat) + ": " + err.error.Error()
+	return "migration " + err.migrationID + ": " + err.error.Error()
 }
 
 func (err *migrationError) Migration() Migration {
@@ -120,7 +120,7 @@ func (err *migrationError) Unwrap() error {
 }
 
 func (err *migrationError) Error() string {
-	return err.migration.ID().Format(DefaultMigrationIDFormat) + ": " + err.error.Error()
+	return err.migration.ID() + ": " + err.error.Error()
 }
 
 func (err *migrationsError) Migrations() []Migration {
@@ -133,7 +133,7 @@ func (err *migrationsError) Error() string {
 		if i > 0 {
 			r.WriteString(",")
 		}
-		r.WriteString(migration.ID().Format(DefaultMigrationIDFormat))
+		r.WriteString(migration.ID())
 	}
 	r.WriteString(": ")
 	r.WriteString(err.error.Error())

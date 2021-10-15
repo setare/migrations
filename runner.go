@@ -1,6 +1,9 @@
 package migrations
 
-import "github.com/pkg/errors"
+import (
+	"context"
+	"fmt"
+)
 
 // Runner will receive the `Plan` from the `Planner` and execute it.
 type Runner struct {
@@ -18,8 +21,10 @@ func NewRunner(source Source, target Target) *Runner {
 }
 
 type RunnerReporter interface {
-	BeforeExecute(ActionType, Migration)
-	AfterExecute(ActionType, Migration, error)
+	BeforeExecute(ctx context.Context, plan Plan)
+	BeforeExecuteMigration(ctx context.Context, actionType ActionType, migration Migration)
+	AfterExecuteMigration(ctx context.Context, actionType ActionType, migration Migration, err error)
+	AfterExecute(ctx context.Context, plan Plan, stats *ExecutionStats, err error)
 }
 
 type ExecutionStats struct {
@@ -35,7 +40,7 @@ type ExecutionStats struct {
 // For each migration executed, the system will move the cursor to that point. So that, if any error happens during the
 // migration execution (do or undo), the execution will be stopped and the error will be returned. All performed actions
 // WILL NOT be rolled back.
-func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, reporter RunnerReporter) (*ExecutionStats, error) {
+func (runner *Runner) Execute(ctx context.Context, plan Plan, reporter RunnerReporter) (*ExecutionStats, error) {
 	stats := &ExecutionStats{
 		Successful: make([]*Action, 0, len(plan)),
 	}
@@ -43,39 +48,51 @@ func (runner *Runner) Execute(executionContext ExecutionContext, plan Plan, repo
 	// Check for undoable migrations...
 	for _, action := range plan {
 		if action.Action == ActionTypeUndo && !action.Migration.CanUndo() {
-			return nil, WrapMigration(ErrMigrationNotUndoable, action.Migration)
+			return stats, WrapMigration(ErrMigrationNotUndoable, action.Migration)
 		}
+	}
+
+	if reporter != nil {
+		reporter.BeforeExecute(ctx, plan)
 	}
 
 	for _, action := range plan {
 		var err error
 		if reporter != nil {
-			reporter.BeforeExecute(action.Action, action.Migration)
+			reporter.BeforeExecuteMigration(ctx, action.Action, action.Migration)
 		}
 		switch action.Action {
 		case ActionTypeDo:
-			err = action.Migration.Do(executionContext)
+			err = action.Migration.Do(ctx)
 			if err == nil {
-				runner.target.Add(action.Migration)
+				err = runner.target.Add(action.Migration)
 			}
 		case ActionTypeUndo:
 			// Undoable migrations were already checked before.
-			err = action.Migration.Undo(executionContext)
+			err = action.Migration.Undo(ctx)
 			if err == nil {
-				runner.target.Remove(action.Migration)
+				err = runner.target.Remove(action.Migration)
 			}
 		default:
-			err = errors.Wrap(ErrInvalidAction, string(action.Action))
+			err = fmt.Errorf("%w: %s", ErrInvalidAction, string(action.Action))
 		}
 		if reporter != nil {
-			reporter.AfterExecute(action.Action, action.Migration, err)
+			reporter.AfterExecuteMigration(ctx, action.Action, action.Migration, err)
 		}
 		if err == nil {
 			stats.Successful = append(stats.Successful, action)
 		} else {
 			stats.Errored = []*Action{action}
+
+			if reporter != nil {
+				reporter.AfterExecute(ctx, plan, stats, err)
+			}
+
 			return stats, err
 		}
+	}
+	if reporter != nil {
+		reporter.AfterExecute(ctx, plan, stats, nil)
 	}
 	return stats, nil
 }
