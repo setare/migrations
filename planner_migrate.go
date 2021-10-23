@@ -19,7 +19,7 @@ func MigratePlanner(source Source, target Target) Planner {
 func (planner *migratePlanner) Plan() (Plan, error) {
 	list, err := planner.source.List()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error listing available migrations")
 	}
 
 	current, err := planner.target.Current()
@@ -36,6 +36,27 @@ func (planner *migratePlanner) Plan() (Plan, error) {
 	} else if err != nil {
 		// Otherwise, it is just an error.
 		return nil, err
+	}
+
+	listM := make(map[string]Migration, len(list))
+	for _, m := range list {
+		listM[m.ID()] = m
+	}
+
+	done, err := planner.target.Done()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed listing migrations applied")
+	}
+	for _, m := range done {
+		if _, ok := listM[m.ID()]; !ok {
+			return nil, errors.Wrap(ErrMigrationNotListed, m.String())
+		}
+	}
+
+	for i, m := range done {
+		if m.ID() != list[i].ID() {
+			return nil, errors.Wrap(ErrStaleMigrationDetected, list[i].String())
+		}
 	}
 
 	// This is the migration that we are trying to reach. Always the most recent one.

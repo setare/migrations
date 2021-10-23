@@ -9,7 +9,6 @@ import (
 var (
 	ErrNonUniqueMigrationID       = errors.New("migration id is not unique")
 	ErrMigrationNotFound          = errors.New("migration not found")
-	ErrUnkownMigrations           = errors.New("unknown migrations were found")
 	ErrNoCurrentMigration         = errors.New("no current migration")
 	ErrCurrentMigrationNotFound   = errors.New("current migration not found in the list")
 	ErrCurrentMigrationMoreRecent = errors.New("current migration is more recent than target migration")
@@ -24,21 +23,13 @@ var (
 	// `Source` list.
 	ErrMigrationNotListed = errors.New("migration not in the source list")
 
+	// ErrStaleMigrationDetected is returned when a migration with an ID eariler of the current applied migration is
+	// detected.
+	ErrStaleMigrationDetected = errors.New("stale migration detected")
+
 	// ErrInvalidAction is returned when, while executing, the `Action.Action`
 	// has an invalid value.
 	ErrInvalidAction = errors.New("undefined action")
-
-	// ErrInvalidPatternForFile is returned when a .sql does not meet the
-	// nameing convention.
-	ErrInvalidPatternForFile = errors.New("file does not match file name rule")
-
-	ErrInvalidSQLFileNameDuplicated = errors.New("file name is duplicated")
-
-	// ErrWrongExecutionContext is returned when an migration execution context
-	// does not fit the configuration to be passed to a specific migration
-	// implementation. For example, a SQL migration receives a executionContext
-	// of a MongoDB.
-	ErrWrongExecutionContext = errors.New("wrong execution context")
 )
 
 // MigrationCodeError wraps an error with a migration ID.

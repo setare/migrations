@@ -20,7 +20,7 @@ func NewRunnerReport(logger *zap.Logger) migrations.RunnerReporter {
 }
 
 func (r *runnerReporter) BeforeExecute(_ context.Context, plan migrations.Plan) {
-	if len(plan) > 0 {
+	if len(plan) == 0 {
 		r.logger.Info("no migrations to run")
 		return
 	}
@@ -37,7 +37,7 @@ func (r *runnerReporter) BeforeExecuteMigration(ctx context.Context, actionType 
 
 func (r *runnerReporter) AfterExecuteMigration(ctx context.Context, actionType migrations.ActionType, migration migrations.Migration, err error) {
 	if err == nil {
-		r.logger.Info(fmt.Sprintf("migration %s (%s)", migration.String(), actionType))
+		r.logger.Info(fmt.Sprintf("migration %s (%s) successfully applied", migration.String(), actionType))
 		return
 	}
 	r.logger.Error(fmt.Sprintf("migration %s has failed to execute", migration.String()), zap.Error(err))
@@ -45,7 +45,7 @@ func (r *runnerReporter) AfterExecuteMigration(ctx context.Context, actionType m
 
 func (r *runnerReporter) AfterExecute(_ context.Context, _ migrations.Plan, stats *migrations.ExecutionStats, err error) {
 	if err == nil {
-		r.logger.Error(fmt.Sprintf("SUCCESS: migration has finished with %d successes and %d failures", len(stats.Successful), len(stats.Errored)))
+		r.logger.Info(fmt.Sprintf("SUCCESS: migration has finished with %d successes and %d failures", len(stats.Successful), len(stats.Errored)))
 	} else {
 		r.logger.Error(fmt.Sprintf("ERROR: migration has failed with %d successes and %d failures", len(stats.Successful), len(stats.Errored)), zap.Error(err))
 	}

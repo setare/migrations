@@ -22,11 +22,15 @@ func Test_migratePlanner_Plan(t *testing.T) {
 			source := NewMockSource(ctrl)
 			target := NewMockTarget(ctrl)
 
-			target.EXPECT().Current().Return(nil, ErrNoCurrentMigration)
+			target.EXPECT().
+				Current().
+				Return(nil, ErrNoCurrentMigration)
 
-			source.EXPECT().List().Return([]Migration{
-				m1, m2, m3,
-			}, nil)
+			source.EXPECT().
+				List().
+				Return([]Migration{
+					m1, m2, m3,
+				}, nil)
 
 			planner := MigratePlanner(source, target)
 			gotPlan, err := planner.Plan()
@@ -53,11 +57,21 @@ func Test_migratePlanner_Plan(t *testing.T) {
 			source := NewMockSource(ctrl)
 			target := NewMockTarget(ctrl)
 
-			target.EXPECT().Current().Return(m2, nil)
+			target.EXPECT().
+				Current().
+				Return(m2, nil)
 
-			source.EXPECT().List().Return([]Migration{
-				m1, m2, m3, m4,
-			}, nil)
+			target.EXPECT().
+				Done().
+				Return([]Migration{
+					m1,
+				}, nil)
+
+			source.EXPECT().
+				List().
+				Return([]Migration{
+					m1, m2, m3, m4,
+				}, nil)
 
 			planner := MigratePlanner(source, target)
 			gotPlan, err := planner.Plan()
@@ -82,11 +96,21 @@ func Test_migratePlanner_Plan(t *testing.T) {
 			source := NewMockSource(ctrl)
 			target := NewMockTarget(ctrl)
 
-			target.EXPECT().Current().Return(m4, nil)
+			target.EXPECT().
+				Current().
+				Return(m4, nil)
 
-			source.EXPECT().List().Return([]Migration{
-				m1, m2, m3, m4,
-			}, nil)
+			target.EXPECT().
+				Done().
+				Return([]Migration{
+					m1, m2, m3, m4,
+				}, nil)
+
+			source.EXPECT().
+				List().
+				Return([]Migration{
+					m1, m2, m3, m4,
+				}, nil)
 
 			planner := MigratePlanner(source, target)
 			gotPlan, err := planner.Plan()
@@ -104,7 +128,9 @@ func Test_migratePlanner_Plan(t *testing.T) {
 
 		wantErr := errors.New("random error")
 
-		source.EXPECT().List().Return(nil, wantErr)
+		source.EXPECT().
+			List().
+			Return(nil, wantErr)
 
 		planner := MigratePlanner(source, target)
 		gotPlan, err := planner.Plan()
@@ -120,9 +146,13 @@ func Test_migratePlanner_Plan(t *testing.T) {
 
 		wantErr := errors.New("random error")
 
-		source.EXPECT().List().Return([]Migration{}, nil)
+		source.EXPECT().
+			List().
+			Return([]Migration{}, nil)
 
-		target.EXPECT().Current().Return(nil, wantErr)
+		target.EXPECT().
+			Current().
+			Return(nil, wantErr)
 
 		planner := MigratePlanner(source, target)
 		gotPlan, err := planner.Plan()
@@ -130,25 +160,68 @@ func Test_migratePlanner_Plan(t *testing.T) {
 		assert.Empty(t, gotPlan)
 	})
 
-	t.Run("should fail when obtaining the current migration fails", func(t *testing.T) {
+	t.Run("should fail we obtaining list of migrations applied fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		source := NewMockSource(ctrl)
+		target := NewMockTarget(ctrl)
+
+		wantErr := errors.New("random error")
+
+		m1 := newMockMigration(ctrl, "1")
+
+		source.EXPECT().
+			List().
+			Return([]Migration{
+				m1,
+			}, nil)
+
+		target.EXPECT().
+			Current().
+			Return(m1, nil)
+
+		target.EXPECT().
+			Done().
+			Return(nil, wantErr)
+
+		planner := MigratePlanner(source, target)
+		gotPlan, err := planner.Plan()
+		assert.ErrorIs(t, err, wantErr)
+		assert.Empty(t, gotPlan)
+	})
+
+	t.Run("should fail when a migration is applied but not listed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		source := NewMockSource(ctrl)
 		target := NewMockTarget(ctrl)
 
 		m1 := newMockMigration(ctrl, "1")
+		m2 := newMockMigration(ctrl, "2")
+		m3 := newMockMigration(ctrl, "3")
 
-		givenCurrentMigration := newMockMigration(ctrl, "2")
+		source.EXPECT().
+			List().
+			Return([]Migration{
+				m1,
+				m3,
+			}, nil)
 
-		source.EXPECT().List().Return([]Migration{
-			m1,
-		}, nil)
+		target.EXPECT().
+			Current().
+			Return(m3, nil)
 
-		target.EXPECT().Current().Return(givenCurrentMigration, nil)
+		target.EXPECT().
+			Done().
+			Return([]Migration{
+				m1,
+				m2,
+				m3,
+			}, nil)
 
 		planner := MigratePlanner(source, target)
 		gotPlan, err := planner.Plan()
-		assert.ErrorIs(t, err, ErrCurrentMigrationNotFound)
+		assert.ErrorIs(t, err, ErrMigrationNotListed)
 		assert.Empty(t, gotPlan)
 	})
 
@@ -162,16 +235,61 @@ func Test_migratePlanner_Plan(t *testing.T) {
 
 		givenCurrentMigration := newMockMigration(ctrl, "2")
 
-		source.EXPECT().List().Return([]Migration{
-			givenCurrentMigration,
-			m1,
-		}, nil)
+		source.EXPECT().
+			List().
+			Return([]Migration{
+				givenCurrentMigration,
+				m1,
+			}, nil)
 
-		target.EXPECT().Current().Return(givenCurrentMigration, nil)
+		target.EXPECT().
+			Current().
+			Return(givenCurrentMigration, nil)
+
+		target.EXPECT().
+			Done().
+			Return([]Migration{
+				givenCurrentMigration,
+			}, nil)
 
 		planner := MigratePlanner(source, target)
 		gotPlan, err := planner.Plan()
 		assert.ErrorIs(t, err, ErrCurrentMigrationMoreRecent)
+		assert.Empty(t, gotPlan)
+	})
+
+	t.Run("should fail when a stale migration is detected", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		source := NewMockSource(ctrl)
+		target := NewMockTarget(ctrl)
+
+		m1 := newMockMigration(ctrl, "1")
+		m2 := newMockMigration(ctrl, "2")
+		m3 := newMockMigration(ctrl, "3")
+
+		source.EXPECT().
+			List().
+			Return([]Migration{
+				m1,
+				m2,
+				m3,
+			}, nil)
+
+		target.EXPECT().
+			Current().
+			Return(m3, nil)
+
+		target.EXPECT().
+			Done().
+			Return([]Migration{
+				m1,
+				m3,
+			}, nil)
+
+		planner := MigratePlanner(source, target)
+		gotPlan, err := planner.Plan()
+		assert.ErrorIs(t, err, ErrStaleMigrationDetected)
 		assert.Empty(t, gotPlan)
 	})
 }

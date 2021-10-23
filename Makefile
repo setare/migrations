@@ -10,3 +10,7 @@ lint:
 .PHONY: test
 test: generate lint
 	go test ./... -v
+
+.PHONY: test
+test-integration: generate
+	go test ./... -v -tags=integration
