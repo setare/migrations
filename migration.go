@@ -1,50 +1,87 @@
 package migrations
 
 import (
-	"time"
+	"context"
+	"errors"
+	"fmt"
 )
 
 var (
-	// DefaultMigrationIDFormat is the default format for the migrations ID.
-	DefaultMigrationIDFormat = "20060102150405"
+	ErrInvalidFilename    = errors.New("invalid filename")
+	ErrInvalidMigrationID = errors.New("invalid migration ID")
 )
 
-// Migration is the abstraction that defines the migration contract.
-//
-// Migrations, by default, cannot be undone. But, if the final migration
-// implement the `MigrationUndoable` interface, the system will let it be
-// undone.
-type Migration interface {
-	// ID identifies the migration. Through the ID, all the sorting is done.
-	ID() time.Time
+type migrationFunc func(ctx context.Context) error
 
-	// String will return a representation of the migration into a string format
-	// for user identification.
-	String() string
+type BaseMigration struct {
+	id          string
+	description string
+	do          migrationFunc
+	undo        migrationFunc
+	next        Migration
+	previous    Migration
+}
 
-	// Description is the humanized description for the migration.
-	Description() string
+func NewMigration(id, description string, do, undo migrationFunc) *BaseMigration {
+	return &BaseMigration{
+		id:          id,
+		description: description,
+		do:          do,
+		undo:        undo,
+	}
+}
 
-	// Next will link this migration with the next. This link should be created
-	// by the source while it is being loaded.
-	Next() Migration
+// ID identifies the migration. Through the ID, all the sorting is done.
+func (migration *BaseMigration) ID() string {
+	return migration.id
+}
 
-	// SetNext will set the next migration
-	SetNext(Migration) Migration
+// String will return a representation of the migration into a string format
+// for user identification.
+func (migration *BaseMigration) String() string {
+	return fmt.Sprintf("%s_%s", migration.id, migration.description)
+}
 
-	// Previous will link this migration with the previous. This link should be
-	// created by the Source while it is being loaded.
-	Previous() Migration
+// Description is the humanized description for the migration.
+func (migration *BaseMigration) Description() string {
+	return migration.description
+}
 
-	// SetPrevious will set the previous migration
-	SetPrevious(Migration) Migration
+// Next will link this migration with the next. This link should be created
+// by the source while it is being loaded.
+func (migration *BaseMigration) Next() Migration {
+	return migration.next
+}
 
-	// Do will execute the migration.
-	Do(executionContext ExecutionContext) error
+// SetNext will set the next migration
+func (migration *BaseMigration) SetNext(value Migration) Migration {
+	migration.next = value
+	return migration
+}
 
-	// CanUndo is a flag that mark this flag as undoable.
-	CanUndo() bool
+// Previous will link this migration with the previous. This link should be
+// created by the Source while it is being loaded.
+func (migration *BaseMigration) Previous() Migration {
+	return migration.previous
+}
 
-	// Undo will undo the migration.
-	Undo(executionContext ExecutionContext) error
+// SetPrevious will set the previous migration
+func (migration *BaseMigration) SetPrevious(value Migration) Migration {
+	migration.previous = value
+	return migration
+}
+
+// Do will execute the migration.
+func (migration *BaseMigration) Do(ctx context.Context) error {
+	return migration.do(ctx)
+}
+
+// CanUndo is a flag that mark this flag as undoable.
+func (migration *BaseMigration) CanUndo() bool {
+	return migration.undo != nil
+}
+
+// Undo will undo the migration.
+func (migration *BaseMigration) Undo(ctx context.Context) error {
+	return migration.undo(ctx)
 }

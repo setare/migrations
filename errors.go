@@ -9,7 +9,6 @@ import (
 var (
 	ErrNonUniqueMigrationID       = errors.New("migration id is not unique")
 	ErrMigrationNotFound          = errors.New("migration not found")
-	ErrUnkownMigrations           = errors.New("unknown migrations were found")
 	ErrNoCurrentMigration         = errors.New("no current migration")
 	ErrCurrentMigrationNotFound   = errors.New("current migration not found in the list")
 	ErrCurrentMigrationMoreRecent = errors.New("current migration is more recent than target migration")
@@ -24,27 +23,19 @@ var (
 	// `Source` list.
 	ErrMigrationNotListed = errors.New("migration not in the source list")
 
+	// ErrStaleMigrationDetected is returned when a migration with an ID eariler of the current applied migration is
+	// detected.
+	ErrStaleMigrationDetected = errors.New("stale migration detected")
+
 	// ErrInvalidAction is returned when, while executing, the `Action.Action`
 	// has an invalid value.
 	ErrInvalidAction = errors.New("undefined action")
-
-	// ErrInvalidPatternForFile is returned when a .sql does not meet the
-	// nameing convention.
-	ErrInvalidPatternForFile = errors.New("file does not match file name rule")
-
-	ErrInvalidSQLFileNameDuplicated = errors.New("file name is duplicated")
-
-	// ErrWrongExecutionContext is returned when an migration execution context
-	// does not fit the configuration to be passed to a specific migration
-	// implementation. For example, a SQL migration receives a executionContext
-	// of a MongoDB.
-	ErrWrongExecutionContext = errors.New("wrong execution context")
 )
 
 // MigrationCodeError wraps an error with a migration ID.
 type MigrationIDError interface {
 	error
-	MigrationID() time.Time
+	MigrationID() string
 	Unwrap() error
 }
 
@@ -63,7 +54,7 @@ type MigrationsError interface {
 
 type migrationIDError struct {
 	error
-	migrationID time.Time
+	migrationID string
 }
 
 type migrationError struct {
@@ -77,7 +68,7 @@ type migrationsError struct {
 }
 
 // WrapMigrationID creates a `MigrationCodeError` based on an existing error.
-func WrapMigrationID(err error, migrationID time.Time) MigrationIDError {
+func WrapMigrationID(err error, migrationID string) MigrationIDError {
 	return &migrationIDError{
 		err,
 		migrationID,
@@ -99,7 +90,7 @@ func WrapMigrations(err error, migrations ...Migration) MigrationsError {
 	}
 }
 
-func (err *migrationIDError) MigrationID() time.Time {
+func (err *migrationIDError) MigrationID() string {
 	return err.migrationID
 }
 
@@ -108,7 +99,7 @@ func (err *migrationIDError) Unwrap() error {
 }
 
 func (err *migrationIDError) Error() string {
-	return "migration " + err.migrationID.Format(DefaultMigrationIDFormat) + ": " + err.error.Error()
+	return "migration " + err.migrationID + ": " + err.error.Error()
 }
 
 func (err *migrationError) Migration() Migration {
@@ -120,7 +111,7 @@ func (err *migrationError) Unwrap() error {
 }
 
 func (err *migrationError) Error() string {
-	return err.migration.ID().Format(DefaultMigrationIDFormat) + ": " + err.error.Error()
+	return err.migration.ID() + ": " + err.error.Error()
 }
 
 func (err *migrationsError) Migrations() []Migration {
@@ -133,7 +124,7 @@ func (err *migrationsError) Error() string {
 		if i > 0 {
 			r.WriteString(",")
 		}
-		r.WriteString(migration.ID().Format(DefaultMigrationIDFormat))
+		r.WriteString(migration.ID())
 	}
 	r.WriteString(": ")
 	r.WriteString(err.error.Error())

@@ -1,3 +1,0 @@
-directory: "./migrations"
-driver: "sqlite3"
-dsn: "test.db"
