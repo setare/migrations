@@ -8,8 +8,8 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const config = {
   title: 'Migrations Documentation',
   tagline: 'Dinosaurs are cool',
-  url: 'https://jamillosantos.github.com/migrations',
-  baseUrl: '/',
+  url: 'https://jamillosantos.github.io',
+  baseUrl: '/migrations/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
@@ -43,13 +43,18 @@ const config = {
         items: [
           {
             type: 'doc',
-            docId: 'intro',
+            docId: 'introduction',
             position: 'left',
-            label: 'Tutorial',
+            label: 'Documentation',
           },
           {
             href: 'https://github.com/jamillosantos/migrations',
             label: 'GitHub',
+            position: 'right',
+          },
+          {
+            href: 'https://pkg.go.dev/github.com/jamillosantos/migrations',
+            label: 'GoDocs',
             position: 'right',
           },
         ],
@@ -69,7 +74,7 @@ const config = {
                 href: 'https://github.com/jamillosantos/migrations',
               },
               {
-                label: 'Godoc',
+                label: 'GoDocs',
                 href: 'https://pkg.go.dev/github.com/jamillosantos/migrations',
               },
             ],

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SqlDialectMappings">
-    <file url="file://$PROJECT_DIR$/../migrations-sql/tests/migrations/case1/20211015015556_add_age_to_customers_table.sql" dialect="GenericSQL" />
-  </component>
-</project>
