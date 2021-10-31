@@ -92,6 +92,17 @@ type Target interface {
 	Remove(Migration) error
 }
 
+// Unlocker abstracts an implementation for unlocking the migration system.
+type Unlocker interface {
+	Unlock() error
+}
+
+// TargetLocker abstracts the locking mechanism for specific target implementations.
+type TargetLocker interface {
+	// Lock will try locking the migration system in such way no other instance of the process can run the migrations.
+	Lock() (Unlocker, error)
+}
+
 type ProgressReporter interface {
 	SetStep(current int)
 	SetSteps(steps []string)
