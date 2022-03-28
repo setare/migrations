@@ -3,7 +3,7 @@ module github.com/jamillosantos/migrations
 go 1.17
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.2
+	github.com/AlecAivazis/survey/v2 v2.3.4
 	github.com/fatih/color v1.13.0
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.42.1
