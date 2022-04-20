@@ -17,3 +17,6 @@
 
 .vscode/
 .idea/
+
+.docusaurus/
+node_modules/
