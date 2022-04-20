@@ -7,7 +7,9 @@ jobs:
   autotag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Conventional Changelog Action
         id: autotag
@@ -15,7 +17,9 @@ jobs:
         with:
           github-token: ${{ secrets.github_token }}
           skip-commit: "true"
-          output-file: "false"
+          preset: "angular"
+          skip-git-pull: "true"
+          release-count: '0'
 
       - name: Create Release
         uses: ncipollo/release-action@v1
