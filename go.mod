@@ -3,7 +3,7 @@ module github.com/jamillosantos/migrations
 go 1.17
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.4
+	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/fatih/color v1.13.0
 	github.com/golang/mock v1.6.0
 	github.com/golangci/golangci-lint v1.42.1
@@ -12,7 +12,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.21.0
-	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
+	golang.org/x/sys v0.0.0-20220422013727-9388b58f7150 // indirect
 )
 
 require (
