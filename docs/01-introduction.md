@@ -10,5 +10,6 @@ and a [Target](https://pkg.go.dev/github.com/jamillosantos/migrations#Target).
 
 For now, there are a couple of implementations of Source and Target that you can use:
 * [SQL](/sql/getting-started)
-* [MongoDB](#mongodb)
+* [MongoDB](/mongo)
+* [Functions](/functions)
 
