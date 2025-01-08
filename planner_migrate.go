@@ -1,7 +1,9 @@
 package migrations
 
 import (
-	"github.com/pkg/errors"
+	"context"
+	"errors"
+	"fmt"
 )
 
 type migratePlanner struct {
@@ -9,6 +11,8 @@ type migratePlanner struct {
 	target Target
 }
 
+// MigratePlanner is an ActionPlanner that returns a Planner that plans actions to take the current version of the
+// database to the latest.
 func MigratePlanner(source Source, target Target) Planner {
 	return &migratePlanner{
 		source: source,
@@ -16,16 +20,21 @@ func MigratePlanner(source Source, target Target) Planner {
 	}
 }
 
-func (planner *migratePlanner) Plan() (Plan, error) {
-	list, err := planner.source.List()
+func (planner *migratePlanner) Plan(ctx context.Context) (Plan, error) {
+	repo, err := planner.source.Load(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "error listing available migrations")
+		return nil, fmt.Errorf("%w: error listing available migrations", err)
 	}
 
-	current, err := planner.target.Current()
+	migrationList, err := repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentMigrationID, err := planner.target.Current(ctx)
 	if errors.Is(err, ErrNoCurrentMigration) {
-		plan := make(Plan, len(list))
-		for i, m := range list {
+		plan := make(Plan, len(migrationList))
+		for i, m := range migrationList {
 			plan[i] = &Action{
 				Action:    ActionTypeDo,
 				Migration: m,
@@ -38,48 +47,45 @@ func (planner *migratePlanner) Plan() (Plan, error) {
 		return nil, err
 	}
 
-	listM := make(map[string]Migration, len(list))
-	for _, m := range list {
-		listM[m.ID()] = m
-	}
-
-	done, err := planner.target.Done()
+	done, err := planner.target.Done(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed listing migrations applied")
+		return nil, fmt.Errorf("failed listing migrations applied: %w", err)
 	}
-	for _, m := range done {
-		if _, ok := listM[m.ID()]; !ok {
-			return nil, errors.Wrap(ErrMigrationNotListed, m.String())
+	for _, migrationID := range done {
+		_, err := repo.ByID(migrationID)
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	// Detects if a migration was added to the list of applied migrations that is not in the source list.
 	for i, m := range done {
-		if m.ID() != list[i].ID() {
-			return nil, errors.Wrap(ErrStaleMigrationDetected, list[i].String())
+		if m != migrationList[i].ID() {
+			return nil, fmt.Errorf("%w: %s", ErrStaleMigrationDetected, migrationList[i].String())
 		}
 	}
 
 	// This is the migration that we are trying to reach. Always the most recent one.
-	targetMigration := list[len(list)-1]
+	targetMigration := migrationList[len(migrationList)-1]
 
 	// If the current migration is the same as the target migration
-	if current.ID() == targetMigration.ID() {
+	if currentMigrationID == targetMigration.ID() {
 		// Nothing should be done.
 		return Plan{}, nil
 	}
 
-	currentMigrationIndex, err := findMigrationIndex(list, current)
+	currentMigrationIndex, err := findMigrationIndexByID(migrationList, currentMigrationID)
 	if err != nil {
 		return nil, err
 	}
 
 	// If the current migration is further in the future than the target migration.
-	if current.ID() > targetMigration.ID() {
-		return nil, errors.Wrapf(ErrCurrentMigrationMoreRecent, "current %s, target %s", current.ID(), targetMigration.ID())
+	if currentMigrationID > targetMigration.ID() {
+		return nil, fmt.Errorf("%w: current %s, target %s", ErrCurrentMigrationMoreRecent, currentMigrationID, targetMigration.ID())
 	}
 
 	// Build plan
-	lst := list[currentMigrationIndex+1:]
+	lst := migrationList[currentMigrationIndex+1:]
 	plan := make(Plan, len(lst))
 	for i, m := range lst {
 		plan[i] = &Action{

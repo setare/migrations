@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"errors"
 )
 
@@ -9,6 +10,7 @@ type rewindPlanner struct {
 	target Target
 }
 
+// RewindPlanner is a planner that will undo all migrations starting from the current revision.
 func RewindPlanner(source Source, target Target) Planner {
 	return &rewindPlanner{
 		source: source,
@@ -16,13 +18,13 @@ func RewindPlanner(source Source, target Target) Planner {
 	}
 }
 
-func (planner *rewindPlanner) Plan() (Plan, error) {
-	list, err := planner.source.List()
+func (planner *rewindPlanner) Plan(ctx context.Context) (Plan, error) {
+	repo, err := planner.source.Load(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	current, err := planner.target.Current()
+	currentMigrationID, err := planner.target.Current(ctx)
 	if errors.Is(err, ErrNoCurrentMigration) {
 		// If there is no current migration, no migrations should run.
 		return Plan{}, nil
@@ -31,13 +33,18 @@ func (planner *rewindPlanner) Plan() (Plan, error) {
 		return nil, err
 	}
 
-	currentMigrationIndex, err := findMigrationIndex(list, current)
+	migrationList, err := repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentMigrationIndex, err := findMigrationIndexByID(migrationList, currentMigrationID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the plan
-	lst := list[:currentMigrationIndex+1]
+	lst := migrationList[:currentMigrationIndex+1]
 	plan := make(Plan, len(lst))
 	for i, m := range lst {
 		// Inverts the order of the list, the rewind should be planned in the inverse execution order.

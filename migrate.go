@@ -4,26 +4,75 @@ import (
 	"context"
 )
 
-func Migrate(ctx context.Context, runner *Runner, runnerReporter RunnerReporter) (*ExecutionStats, error) {
-	if locker, ok := runner.target.(TargetLocker); ok {
-		lock, err := locker.Lock()
-		if err != nil {
-			return nil, err
-		}
+type ActionPLanner func(source Source, target Target) Planner
 
-		defer func() {
-			_ = lock.Unlock()
-		}()
+type migrateOptions struct {
+	Runner        *Runner
+	Reporter      RunnerReporter
+	RunnerOptions []RunnerOption
+	Planner       ActionPLanner
+}
+
+type MigrateOption func(*migrateOptions)
+
+func Migrate(ctx context.Context, source Source, target Target, opts ...MigrateOption) (ExecutionResponse, error) {
+	options := migrateOptions{
+		Runner:        nil,
+		Reporter:      nil,
+		RunnerOptions: nil,
+		Planner:       MigratePlanner,
 	}
 
-	err := runner.target.Create()
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	if options.Runner == nil {
+		options.Runner = NewRunner(source, target, options.RunnerOptions...)
+	}
+
+	runner := options.Runner
+
+	unlocker, err := runner.target.Lock(ctx)
 	if err != nil {
-		return nil, err
+		return ExecutionResponse{}, err
+	}
+	defer func() {
+		_ = unlocker.Unlock(detach(ctx))
+	}()
+
+	err = runner.target.Create(ctx)
+	if err != nil {
+		return ExecutionResponse{}, err
 	}
 
-	plan, err := MigratePlanner(runner.source, runner.target).Plan()
+	plan, err := options.Planner(runner.source, runner.target).
+		Plan(ctx)
 	if err != nil {
-		return nil, err
+		return ExecutionResponse{}, err
 	}
-	return runner.Execute(ctx, plan, runnerReporter)
+	return runner.Execute(ctx, &ExecuteRequest{
+		Plan: plan,
+	})
+}
+
+// WithRunner sets the reporter to be used by the migration process.
+func WithRunner(runner *Runner) MigrateOption {
+	return func(options *migrateOptions) {
+		options.Runner = runner
+	}
+}
+
+// WithRunnerOptions sets the options to be used by the runner created. If a `WithRunner` is used, this is ignored.
+func WithRunnerOptions(opts ...RunnerOption) MigrateOption {
+	return func(options *migrateOptions) {
+		options.RunnerOptions = opts
+	}
+}
+
+// WithPlanner sets the planner to be used by the migration process. Default planner is MigratePlanner.
+func WithPlanner(planner ActionPLanner) MigrateOption {
+	return func(options *migrateOptions) {
+		options.Planner = planner
+	}
 }

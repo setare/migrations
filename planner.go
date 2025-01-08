@@ -1,14 +1,14 @@
 package migrations
 
-import "github.com/pkg/errors"
+import (
+	"context"
+)
 
 type Planner interface {
-	Plan() (Plan, error)
+	Plan(ctx context.Context) (Plan, error)
 }
 
 type Plan []*Action
-
-type PlannerFunc func(Source, Target) Planner
 
 func findMigrationIndex(list []Migration, migration Migration) (int, error) {
 	index := -1
@@ -20,7 +20,23 @@ func findMigrationIndex(list []Migration, migration Migration) (int, error) {
 
 	// If the current migration is not in the list
 	if index == -1 {
-		return -1, errors.Wrap(ErrCurrentMigrationNotFound, migration.ID())
+		return -1, WrapMigrationID(ErrCurrentMigrationNotFound, migration.ID())
+	}
+
+	return index, nil
+}
+
+func findMigrationIndexByID(list []Migration, migrationID string) (int, error) {
+	index := -1
+	for i, m := range list {
+		if migrationID == m.ID() {
+			index = i
+		}
+	}
+
+	// If the current migration is not in the list
+	if index == -1 {
+		return -1, WrapMigrationID(ErrCurrentMigrationNotFound, migrationID)
 	}
 
 	return index, nil

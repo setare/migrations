@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 type runnerObjs struct {
@@ -50,8 +50,8 @@ func TestRunner_Execute(t *testing.T) {
 		m2.EXPECT().CanUndo().Return(true)
 		m2.EXPECT().Undo(ctx).Return(nil)
 
-		s.target.EXPECT().Add(m1).Return(nil)
-		s.target.EXPECT().Remove(m2).Return(nil)
+		s.target.EXPECT().Add(ctx, m1.ID()).Return(nil)
+		s.target.EXPECT().Remove(ctx, m2.ID()).Return(nil)
 
 		// Create an artificial plan simulating a migration
 		plan := Plan{
@@ -66,7 +66,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.NoError(t, err)
 
 		// Check runner returned stats
@@ -78,11 +80,13 @@ func TestRunner_Execute(t *testing.T) {
 
 	t.Run("should execute a plan with reporter", func(t *testing.T) {
 		ctx := context.Background()
-		s := createRunner(t)
 
 		ctrl := gomock.NewController(t)
 
-		reporter := NewMockRunnerReporter(s.ctrl)
+		source := NewMockSource(ctrl)
+		target := NewMockTarget(ctrl)
+		reporter := NewMockRunnerReporter(ctrl)
+		runner := NewRunner(source, target, WithReporter(reporter))
 
 		m1 := newMockMigration(ctrl, "1")
 		m2 := newMockMigration(ctrl, "2")
@@ -103,20 +107,43 @@ func TestRunner_Execute(t *testing.T) {
 		m2.EXPECT().CanUndo().Return(true)
 		m2.EXPECT().Undo(ctx).Return(nil)
 
-		s.target.EXPECT().Add(m1).Return(nil)
-		s.target.EXPECT().Remove(m2).Return(nil)
+		target.EXPECT().Add(ctx, m1.ID()).Return(nil)
+		target.EXPECT().Remove(ctx, m2.ID()).Return(nil)
 
-		reporter.EXPECT().BeforeExecute(ctx, plan).Return()
-		reporter.EXPECT().AfterExecute(ctx, plan, gomock.Any(), nil).Return()
+		reporter.EXPECT().BeforeExecute(ctx, &BeforeExecuteInfo{
+			Plan: plan,
+		}).Return()
+		reporter.EXPECT().AfterExecute(ctx, gomock.Any()).
+			Do(func(_ context.Context, plan *AfterExecuteInfo) {
+				require.NoError(t, plan.Err)
+				assert.Len(t, plan.Stats.Successful, 2)
+			}).
+			Return()
 
-		reporter.EXPECT().BeforeExecuteMigration(ctx, ActionTypeDo, m1).Return()
-		reporter.EXPECT().AfterExecuteMigration(ctx, ActionTypeDo, m1, nil).Return()
+		reporter.EXPECT().BeforeExecuteMigration(ctx, &BeforeExecuteMigrationInfo{
+			ActionType: ActionTypeDo,
+			Migration:  m1,
+		}).Return()
+		reporter.EXPECT().AfterExecuteMigration(ctx, &AfterExecuteMigrationInfo{
+			ActionType: ActionTypeDo,
+			Migration:  m1,
+			Err:        nil,
+		}).Return()
 
-		reporter.EXPECT().BeforeExecuteMigration(ctx, ActionTypeUndo, m2).Return()
-		reporter.EXPECT().AfterExecuteMigration(ctx, ActionTypeUndo, m2, nil).Return()
+		reporter.EXPECT().BeforeExecuteMigration(ctx, &BeforeExecuteMigrationInfo{
+			ActionType: ActionTypeUndo,
+			Migration:  m2,
+		}).Return()
+		reporter.EXPECT().AfterExecuteMigration(ctx, &AfterExecuteMigrationInfo{
+			ActionType: ActionTypeUndo,
+			Migration:  m2,
+			Err:        nil,
+		}).Return()
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, reporter)
+		stats, err := runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.NoError(t, err)
 
 		// Check runner returned stats
@@ -145,7 +172,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		assert.ErrorIs(t, err, ErrMigrationNotUndoable)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
@@ -172,7 +201,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.ErrorIs(t, err, wantErr)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
@@ -189,7 +220,7 @@ func TestRunner_Execute(t *testing.T) {
 		wantErr := errors.New("random error")
 
 		m1.EXPECT().Do(gomock.Any()).Return(nil)
-		s.target.EXPECT().Add(gomock.Any()).Return(wantErr)
+		s.target.EXPECT().Add(gomock.Any(), gomock.Any()).Return(wantErr)
 
 		// Create an artificial plan simulating a migration
 		plan := Plan{
@@ -200,7 +231,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.ErrorIs(t, err, wantErr)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
@@ -228,7 +261,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.ErrorIs(t, err, wantErr)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
@@ -246,7 +281,7 @@ func TestRunner_Execute(t *testing.T) {
 
 		m1.EXPECT().Undo(gomock.Any()).Return(nil)
 		m1.EXPECT().CanUndo().Return(true)
-		s.target.EXPECT().Remove(gomock.Any()).Return(wantErr)
+		s.target.EXPECT().Remove(gomock.Any(), gomock.Any()).Return(wantErr)
 
 		// Create an artificial plan simulating a migration
 		plan := Plan{
@@ -257,7 +292,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.ErrorIs(t, err, wantErr)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
@@ -280,7 +317,9 @@ func TestRunner_Execute(t *testing.T) {
 		}
 
 		// Initialize and activate the runner
-		stats, err := s.runner.Execute(ctx, plan, nil)
+		stats, err := s.runner.Execute(ctx, &ExecuteRequest{
+			Plan: plan,
+		})
 		require.ErrorIs(t, err, ErrInvalidAction)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
