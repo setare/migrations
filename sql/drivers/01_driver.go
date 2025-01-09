@@ -8,8 +8,10 @@ import (
 )
 
 type Driver interface {
-	Add(ctx context.Context, migration string) error
-	Remove(ctx context.Context, migration string) error
+	Add(ctx context.Context, id string) error
+	Remove(ctx context.Context, id string) error
+	StartMigration(ctx context.Context, id string) error
+	FinishMigration(ctx context.Context, id string) error
 	Lock(ctx context.Context) (migrations.Unlocker, error)
 }
 

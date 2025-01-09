@@ -109,12 +109,20 @@ func (runner *Runner) Execute(ctx context.Context, req *ExecuteRequest) (Executi
 		}
 		switch action.Action {
 		case ActionTypeDo:
+			err = runner.target.Add(ctx, action.Migration.ID())
+			if err != nil {
+				return ExecutionResponse{}, err
+			}
 			err = action.Migration.Do(ctx)
 			if err == nil {
-				err = runner.target.Add(ctx, action.Migration.ID())
+				err = runner.target.FinishMigration(ctx, action.Migration.ID())
 			}
 		case ActionTypeUndo:
 			// Undoable migrations were already checked before.
+			err = runner.target.StartMigration(ctx, action.Migration.ID())
+			if err != nil {
+				return ExecutionResponse{}, err
+			}
 			err = action.Migration.Undo(ctx)
 			if err == nil {
 				err = runner.target.Remove(ctx, action.Migration.ID())

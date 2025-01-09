@@ -1,4 +1,4 @@
-package migrationsfnc
+package fnc
 
 import (
 	"testing"
