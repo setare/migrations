@@ -63,7 +63,7 @@ func (p *sqlDriver) Lock(_ context.Context) (migrations.Unlocker, error) {
 }
 
 func (p *sqlDriver) Add(ctx context.Context, id string) error {
-	_, err := p.db.ExecContext(ctx, fmt.Sprintf("INSERT INTO %s (id) VALUES ($1)", p.tableName), id)
+	_, err := p.db.ExecContext(ctx, fmt.Sprintf("INSERT INTO %s (id, dirty) VALUES ($1, true)", p.tableName), id)
 	if err != nil {
 		return fmt.Errorf("failed adding migration to the executed list: %w", err)
 	}
@@ -76,6 +76,32 @@ func (p *sqlDriver) Remove(ctx context.Context, id string) error {
 		return fmt.Errorf("failed removing migration from the executed list: %w", err)
 	}
 
+	if rows, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToGetAffectedRows, err)
+	} else if rows == 0 {
+		return migrations.ErrMigrationNotFound
+	}
+	return nil
+}
+
+func (p *sqlDriver) StartMigration(ctx context.Context, id string) error {
+	result, err := p.db.ExecContext(ctx, fmt.Sprintf("UPDATE %s SET dirty = true WHERE id = $1", p.tableName), id)
+	if err != nil {
+		return fmt.Errorf("failed starting migration: %w", err)
+	}
+	if rows, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToGetAffectedRows, err)
+	} else if rows == 0 {
+		return migrations.ErrMigrationNotFound
+	}
+	return nil
+}
+
+func (p *sqlDriver) FinishMigration(ctx context.Context, id string) error {
+	result, err := p.db.ExecContext(ctx, fmt.Sprintf("UPDATE %s SET dirty = false WHERE id = $1", p.tableName), id)
+	if err != nil {
+		return fmt.Errorf("failed finishing migration: %w", err)
+	}
 	if rows, err := result.RowsAffected(); err != nil {
 		return fmt.Errorf("%w: %w", ErrFailedToGetAffectedRows, err)
 	} else if rows == 0 {

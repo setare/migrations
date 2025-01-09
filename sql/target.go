@@ -27,6 +27,14 @@ type Target struct {
 	tableName string
 }
 
+func (target *Target) FinishMigration(ctx context.Context, id string) error {
+	return target.driver.FinishMigration(ctx, id)
+}
+
+func (target *Target) StartMigration(ctx context.Context, id string) error {
+	return target.driver.StartMigration(ctx, id)
+}
+
 func NewTarget(db DB, options ...TargetOption) (*Target, error) {
 	opts := targetOpts{
 		driver:    nil,
@@ -55,7 +63,7 @@ func NewTarget(db DB, options ...TargetOption) (*Target, error) {
 }
 
 func (target *Target) Create(ctx context.Context) error {
-	_, err := target.db.ExecContext(ctx, fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY)", target.tableName))
+	_, err := target.db.ExecContext(ctx, fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, dirty bool default true)", target.tableName))
 	return err
 }
 
@@ -78,7 +86,7 @@ func (target *Target) Current(ctx context.Context) (string, error) {
 }
 
 func (target *Target) Done(ctx context.Context) ([]string, error) {
-	rs, err := target.db.QueryContext(ctx, fmt.Sprintf("SELECT id FROM %s ORDER BY id ASC", target.tableName))
+	rs, err := target.db.QueryContext(ctx, fmt.Sprintf("SELECT id, dirty FROM %s ORDER BY id ASC", target.tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +94,18 @@ func (target *Target) Done(ctx context.Context) ([]string, error) {
 		_ = rs.Close()
 	}()
 
-	var id string
+	var (
+		id    string
+		dirty bool
+	)
 	result := make([]string, 0)
 	for rs.Next() {
-		err := rs.Scan(&id)
+		err := rs.Scan(&id, &dirty)
 		if err != nil {
 			return nil, err
+		}
+		if dirty {
+			return nil, migrations.WrapMigrationID(migrations.ErrDirtyMigration, id)
 		}
 		result = append(result, id)
 	}

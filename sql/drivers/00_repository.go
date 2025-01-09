@@ -11,8 +11,9 @@ var (
 )
 
 var drivers = map[string]DriverConstructor{
-	"sql":      newSQL,
-	"postgres": newPostgres,
+	"sql":        newSQL,
+	"postgres":   newPostgres,
+	"*pq.Driver": newPostgres,
 }
 
 // Register will register a new driver constructor for the given driver name.

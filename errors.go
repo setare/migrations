@@ -28,6 +28,8 @@ var (
 	// ErrInvalidAction is returned when, while executing, the `Action.Action`
 	// has an invalid value.
 	ErrInvalidAction = errors.New("undefined action")
+
+	ErrDirtyMigration = errors.New("migration was started but not completed and now it is in a dirty state")
 )
 
 // ---------------------------------------------------------------------------------------------------------------------

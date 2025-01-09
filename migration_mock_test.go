@@ -165,6 +165,20 @@ func (mr *MockTargetMockRecorder) Done(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Done", reflect.TypeOf((*MockTarget)(nil).Done), ctx)
 }
 
+// FinishMigration mocks base method.
+func (m *MockTarget) FinishMigration(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FinishMigration", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// FinishMigration indicates an expected call of FinishMigration.
+func (mr *MockTargetMockRecorder) FinishMigration(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinishMigration", reflect.TypeOf((*MockTarget)(nil).FinishMigration), ctx, id)
+}
+
 // Lock mocks base method.
 func (m *MockTarget) Lock(ctx context.Context) (Unlocker, error) {
 	m.ctrl.T.Helper()
@@ -192,6 +206,20 @@ func (m *MockTarget) Remove(ctx context.Context, id string) error {
 func (mr *MockTargetMockRecorder) Remove(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockTarget)(nil).Remove), ctx, id)
+}
+
+// StartMigration mocks base method.
+func (m *MockTarget) StartMigration(ctx context.Context, id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartMigration", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StartMigration indicates an expected call of StartMigration.
+func (mr *MockTargetMockRecorder) StartMigration(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartMigration", reflect.TypeOf((*MockTarget)(nil).StartMigration), ctx, id)
 }
 
 // MockMigration is a mock of Migration interface.

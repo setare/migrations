@@ -30,7 +30,7 @@ func (planner *resetPlanner) Plan(ctx context.Context) (Plan, error) {
 		return nil, err
 	}
 
-	currentMigrationID, err := planner.target.Current(nil)
+	currentMigrationID, err := planner.target.Current(ctx)
 	if errors.Is(err, ErrNoCurrentMigration) {
 		plan := make(Plan, len(migrationList))
 		for i, m := range migrationList {

@@ -91,6 +91,12 @@ type Target interface {
 	// Remove removes a migration from the list of successful migrations.
 	Remove(ctx context.Context, id string) error
 
+	// FinishMigration will mark the migration as finished. This is only used when the migration is being added.
+	FinishMigration(ctx context.Context, id string) error
+
+	// StartMigration will mark the migration as dirty. This is only used when the migration is being removed.
+	StartMigration(ctx context.Context, id string) error
+
 	// Lock will try locking the migration system in such way no other instance of the process can run the migrations.
 	Lock(ctx context.Context) (Unlocker, error)
 }
