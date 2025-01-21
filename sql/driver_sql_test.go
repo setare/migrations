@@ -43,6 +43,7 @@ var _ = Describe("SQL", func() {
 
 	It("should add a new migration", func() {
 		Expect(target.Add(ctx, "1")).ToNot(HaveOccurred())
+		Expect(target.FinishMigration(ctx, "1")).ToNot(HaveOccurred())
 
 		done, err := target.Done(ctx)
 		Expect(err).ToNot(HaveOccurred())

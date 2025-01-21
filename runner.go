@@ -111,7 +111,7 @@ func (runner *Runner) Execute(ctx context.Context, req *ExecuteRequest) (Executi
 		case ActionTypeDo:
 			err = runner.target.Add(ctx, action.Migration.ID())
 			if err != nil {
-				return ExecutionResponse{}, err
+				return stats, err
 			}
 			err = action.Migration.Do(ctx)
 			if err == nil {

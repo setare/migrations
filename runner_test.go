@@ -51,6 +51,8 @@ func TestRunner_Execute(t *testing.T) {
 		m2.EXPECT().Undo(ctx).Return(nil)
 
 		s.target.EXPECT().Add(ctx, m1.ID()).Return(nil)
+		s.target.EXPECT().FinishMigration(ctx, m1.ID()).Return(nil)
+		s.target.EXPECT().StartMigration(ctx, m2.ID()).Return(nil)
 		s.target.EXPECT().Remove(ctx, m2.ID()).Return(nil)
 
 		// Create an artificial plan simulating a migration
@@ -108,6 +110,8 @@ func TestRunner_Execute(t *testing.T) {
 		m2.EXPECT().Undo(ctx).Return(nil)
 
 		target.EXPECT().Add(ctx, m1.ID()).Return(nil)
+		target.EXPECT().FinishMigration(ctx, m1.ID()).Return(nil)
+		target.EXPECT().StartMigration(ctx, m2.ID()).Return(nil)
 		target.EXPECT().Remove(ctx, m2.ID()).Return(nil)
 
 		reporter.EXPECT().BeforeExecute(ctx, &BeforeExecuteInfo{
@@ -181,7 +185,7 @@ func TestRunner_Execute(t *testing.T) {
 		assert.Empty(t, stats.Errored)
 	})
 
-	t.Run("should fail when the migration Do fails", func(t *testing.T) {
+	t.Run("should fail when the migration Do fails and leave the migration state dirty", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := context.Background()
 		s := createRunner(t)
@@ -190,6 +194,7 @@ func TestRunner_Execute(t *testing.T) {
 
 		wantErr := errors.New("random error")
 
+		s.target.EXPECT().Add(gomock.Any(), m1.ID()).Return(nil)
 		m1.EXPECT().Do(gomock.Any()).Return(wantErr)
 
 		// Create an artificial plan simulating a migration
@@ -219,7 +224,6 @@ func TestRunner_Execute(t *testing.T) {
 
 		wantErr := errors.New("random error")
 
-		m1.EXPECT().Do(gomock.Any()).Return(nil)
 		s.target.EXPECT().Add(gomock.Any(), gomock.Any()).Return(wantErr)
 
 		// Create an artificial plan simulating a migration
@@ -237,7 +241,7 @@ func TestRunner_Execute(t *testing.T) {
 		require.ErrorIs(t, err, wantErr)
 		require.NotNil(t, stats)
 		assert.Empty(t, stats.Successful)
-		require.Len(t, stats.Errored, 1)
+		require.Len(t, stats.Errored, 0)
 	})
 
 	t.Run("should fail when the migration Undo fails", func(t *testing.T) {
@@ -250,6 +254,7 @@ func TestRunner_Execute(t *testing.T) {
 		wantErr := errors.New("random error")
 
 		m1.EXPECT().CanUndo().Return(true)
+		s.target.EXPECT().StartMigration(gomock.Any(), m1.ID()).Return(nil)
 		m1.EXPECT().Undo(gomock.Any()).Return(wantErr)
 
 		// Create an artificial plan simulating a migration
@@ -279,6 +284,7 @@ func TestRunner_Execute(t *testing.T) {
 
 		wantErr := errors.New("random error")
 
+		s.target.EXPECT().StartMigration(gomock.Any(), m1.ID()).Return(nil)
 		m1.EXPECT().Undo(gomock.Any()).Return(nil)
 		m1.EXPECT().CanUndo().Return(true)
 		s.target.EXPECT().Remove(gomock.Any(), gomock.Any()).Return(wantErr)
