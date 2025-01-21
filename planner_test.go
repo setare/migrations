@@ -3,9 +3,9 @@ package migrations
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 func Test_findMigrationIndex(t *testing.T) {

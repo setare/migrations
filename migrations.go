@@ -54,16 +54,16 @@ type Migration interface {
 // Migrations can be stored into many medias, from Go source code files, plain SQL files, go:embed. So, this interface
 // is responsible for abstracting how this system accepts any media to list the
 type Source interface {
-	// ByID will return the Migration reference given the ID.
+	// Add will add a Migration to the source list.
 	//
-	// If the migration id cannot be found, this function should return ErrMigrationNotFound.
-	ByID(string) (Migration, error)
+	// If the migration id cannot be found, this function should return ErrMigrationAlreadyExists.
+	Add(ctx context.Context, migration Migration) error
 
-	// List will return the list of available migrations, sorted by ID (the older first, the newest last).
+	// Load will return the list of available migrations, sorted by ID (the older first, the newest last).
 	//
 	// If there is no migrations available, an ErrNoMigrationsAvailable should
 	// be returned.
-	List() ([]Migration, error)
+	Load(ctx context.Context) (Repository, error)
 }
 
 // Target is responsible for managing the state of the migration system. This interface abstracts the operations needed
@@ -72,35 +72,38 @@ type Target interface {
 	// Current returns the reference to the most recent migration applied to the system.
 	//
 	// If there is no migration run, the system will return an ErrNoCurrentMigration error.
-	Current() (Migration, error)
+	Current(ctx context.Context) (string, error)
 
 	// Create ensures the creation of the list of migrations is done successfully. As an example, if this was an SQL
 	// database implementation, this method would create the `_migrations` table.
-	Create() error
+	Create(ctx context.Context) error
 
 	// Destroy removes the list of the applied migrations. As an example, if this was an SQL database implementation,
 	// this would drop the `_migrations` table.
-	Destroy() error
+	Destroy(ctx context.Context) error
 
 	// Done list all the migrations that were successfully applied.
-	Done() ([]Migration, error)
+	Done(ctx context.Context) ([]string, error)
 
 	// Add adds a migration to the list of successful migrations.
-	Add(Migration) error
+	Add(ctx context.Context, id string) error
 
 	// Remove removes a migration from the list of successful migrations.
-	Remove(Migration) error
+	Remove(ctx context.Context, id string) error
+
+	// FinishMigration will mark the migration as finished. This is only used when the migration is being added.
+	FinishMigration(ctx context.Context, id string) error
+
+	// StartMigration will mark the migration as dirty. This is only used when the migration is being removed.
+	StartMigration(ctx context.Context, id string) error
+
+	// Lock will try locking the migration system in such way no other instance of the process can run the migrations.
+	Lock(ctx context.Context) (Unlocker, error)
 }
 
 // Unlocker abstracts an implementation for unlocking the migration system.
 type Unlocker interface {
-	Unlock() error
-}
-
-// TargetLocker abstracts the locking mechanism for specific target implementations.
-type TargetLocker interface {
-	// Lock will try locking the migration system in such way no other instance of the process can run the migrations.
-	Lock() (Unlocker, error)
+	Unlock(ctx context.Context) error
 }
 
 type ProgressReporter interface {

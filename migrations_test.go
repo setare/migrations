@@ -1,3 +1,3 @@
-//go:generate go run github.com/golang/mock/mockgen -package migrations -destination migration_mock_test.go github.com/jamillosantos/migrations Source,Target,Migration,RunnerReporter
+//go:generate go run go.uber.org/mock/mockgen -package migrations -destination migration_mock_test.go github.com/jamillosantos/migrations/v2 Source,Target,Migration,RunnerReporter
 
 package migrations

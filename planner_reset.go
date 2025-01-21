@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"context"
 	"errors"
 )
 
@@ -9,6 +10,8 @@ type resetPlanner struct {
 	target Target
 }
 
+// ResetPlanner is an ActionPlanner that returns a Planner that plans actions to rewind all migrations and then migrate
+// again to the latest version.
 func ResetPlanner(source Source, target Target) Planner {
 	return &resetPlanner{
 		source: source,
@@ -16,16 +19,21 @@ func ResetPlanner(source Source, target Target) Planner {
 	}
 }
 
-func (planner *resetPlanner) Plan() (Plan, error) {
-	list, err := planner.source.List()
+func (planner *resetPlanner) Plan(ctx context.Context) (Plan, error) {
+	repo, err := planner.source.Load(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	current, err := planner.target.Current()
+	migrationList, err := repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentMigrationID, err := planner.target.Current(ctx)
 	if errors.Is(err, ErrNoCurrentMigration) {
-		plan := make(Plan, len(list))
-		for i, m := range list {
+		plan := make(Plan, len(migrationList))
+		for i, m := range migrationList {
 			plan[i] = &Action{
 				Action:    ActionTypeDo,
 				Migration: m,
@@ -38,14 +46,14 @@ func (planner *resetPlanner) Plan() (Plan, error) {
 		return nil, err
 	}
 
-	currentMigrationIndex, err := findMigrationIndex(list, current)
+	currentMigrationIndex, err := findMigrationIndexByID(migrationList, currentMigrationID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build the plan
-	lst := list[:currentMigrationIndex+1]
-	plan := make(Plan, len(lst), len(lst)+len(list))
+	lst := migrationList[:currentMigrationIndex+1]
+	plan := make(Plan, len(lst), len(lst)+len(migrationList))
 	// Rewinds it...
 	for i, m := range lst {
 		// Inverts the order of the list, the rewind should be planned in the inverse execution order.
@@ -55,7 +63,7 @@ func (planner *resetPlanner) Plan() (Plan, error) {
 		}
 	}
 	// Migrates it ...
-	for _, m := range list {
+	for _, m := range migrationList {
 		plan = append(plan, &Action{
 			Action:    ActionTypeDo,
 			Migration: m,

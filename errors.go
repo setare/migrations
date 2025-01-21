@@ -3,11 +3,9 @@ package migrations
 import (
 	"errors"
 	"strings"
-	"time"
 )
 
 var (
-	ErrNonUniqueMigrationID       = errors.New("migration id is not unique")
 	ErrMigrationNotFound          = errors.New("migration not found")
 	ErrNoCurrentMigration         = errors.New("no current migration")
 	ErrCurrentMigrationNotFound   = errors.New("current migration not found in the list")
@@ -30,76 +28,41 @@ var (
 	// ErrInvalidAction is returned when, while executing, the `Action.Action`
 	// has an invalid value.
 	ErrInvalidAction = errors.New("undefined action")
+
+	ErrDirtyMigration = errors.New("migration was started but not completed and now it is in a dirty state")
 )
 
-// MigrationCodeError wraps an error with a migration ID.
+// ---------------------------------------------------------------------------------------------------------------------
+
+// MigrationIDError wraps an error with a migration ID.
 type MigrationIDError interface {
-	error
 	MigrationID() string
-	Unwrap() error
 }
 
 // MigrationError wraps an error with a migration property.
 type MigrationError interface {
-	error
 	Migration() Migration
 	Unwrap() error
 }
 
 // MigrationsError wraps an error with a list of migrations.
 type MigrationsError interface {
-	error
 	Migrations() []Migration
 }
 
-type migrationIDError struct {
-	error
-	migrationID string
-}
+// ---------------------------------------------------------------------------------------------------------------------
 
 type migrationError struct {
 	error
 	migration Migration
 }
 
-type migrationsError struct {
-	error
-	migrations []Migration
-}
-
-// WrapMigrationID creates a `MigrationCodeError` based on an existing error.
-func WrapMigrationID(err error, migrationID string) MigrationIDError {
-	return &migrationIDError{
-		err,
-		migrationID,
-	}
-}
-
 // WrapMigration creates a `MigrationError` based on an existing error.
-func WrapMigration(err error, migration Migration) MigrationError {
+func WrapMigration(err error, migration Migration) *migrationError {
 	return &migrationError{
 		err,
 		migration,
 	}
-}
-
-func WrapMigrations(err error, migrations ...Migration) MigrationsError {
-	return &migrationsError{
-		err,
-		migrations,
-	}
-}
-
-func (err *migrationIDError) MigrationID() string {
-	return err.migrationID
-}
-
-func (err *migrationIDError) Unwrap() error {
-	return err.error
-}
-
-func (err *migrationIDError) Error() string {
-	return "migration " + err.migrationID + ": " + err.error.Error()
 }
 
 func (err *migrationError) Migration() Migration {
@@ -112,6 +75,24 @@ func (err *migrationError) Unwrap() error {
 
 func (err *migrationError) Error() string {
 	return err.migration.ID() + ": " + err.error.Error()
+}
+
+func (err *migrationError) Is(target error) bool {
+	return err == target || errors.Is(err.error, target)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type migrationsError struct {
+	error
+	migrations []Migration
+}
+
+func WrapMigrations(err error, migrations ...Migration) MigrationsError {
+	return &migrationsError{
+		err,
+		migrations,
+	}
 }
 
 func (err *migrationsError) Migrations() []Migration {
@@ -131,9 +112,49 @@ func (err *migrationsError) Error() string {
 	return r.String()
 }
 
-var (
-	MigrationIDNone = time.Unix(0, 0)
-)
+func (err *migrationsError) Unwrap() error {
+	return err.error
+}
+
+func (err *migrationsError) Is(target error) bool {
+	return err == target || errors.Is(err.error, target)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+type migrationIDError struct {
+	error
+	migrationID string
+}
+
+// WrapMigrationID creates a `MigrationCodeError` based on an existing error.
+func WrapMigrationID(err error, migrationID string) *migrationIDError {
+	return &migrationIDError{
+		err,
+		migrationID,
+	}
+}
+
+func (err *migrationIDError) MigrationID() string {
+	return err.migrationID
+}
+
+func (err *migrationIDError) Unwrap() error {
+	return err.error
+}
+
+func (err *migrationIDError) Is(target error) bool {
+	if target, ok := target.(MigrationIDError); ok {
+		return target.MigrationID() == err.migrationID
+	}
+	return errors.Is(err.error, target)
+}
+
+func (err *migrationIDError) Error() string {
+	return "migration " + err.migrationID + ": " + err.error.Error()
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 
 type QueryError interface {
 	Query() string
@@ -152,6 +173,10 @@ func (err *queryError) Unwrap() error {
 	return err.error
 }
 
-func (err queryError) Query() string {
+func (err *queryError) Query() string {
 	return err.query
+}
+
+func (err *queryError) Is(target error) bool {
+	return err == target || errors.Is(err.error, target)
 }

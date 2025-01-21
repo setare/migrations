@@ -2,13 +2,7 @@ package migrations
 
 import (
 	"context"
-	"errors"
 	"fmt"
-)
-
-var (
-	ErrInvalidFilename    = errors.New("invalid filename")
-	ErrInvalidMigrationID = errors.New("invalid migration ID")
 )
 
 type migrationFunc func(ctx context.Context) error
